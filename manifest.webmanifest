@@ -1,0 +1,10 @@
+{
+  "name": "BONDI",
+  "short_name": "BONDI",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#082c23",
+  "theme_color": "#082c23",
+  "description": "Playable BONDI card game prototype"
+}
