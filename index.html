@@ -82,7 +82,7 @@ details.log-panel[open] summary{border-bottom:1px solid var(--line)}
 <section class="panel"><div class="row"><strong id="handTitle">Current Aiybai</strong><span class="note" id="handNote"></span></div><div id="hand" class="cards"></div><div class="play-actions"><button class="primary" id="play" disabled>Play selected card</button><button id="clear">Clear</button></div><p class="note" id="hint">Tap once to select; double-tap the same card to play. Swipe sideways to browse your Aiybai.</p></section>
 <details class="panel log-panel"><summary>Game log &amp; export</summary><div class="log-body"><button id="copyFullLog">Copy Full Game Log</button><span class="note" id="copyStatus"></span><div id="log" class="log">No game started.</div><p class="note">The full strategy log records the entire game, including your Aiybai and legal choices before each play. Use the button above after a game and paste it into ChatGPT for strategy analysis.</p></div></details>
 </main>
-<script src="game-engine-loader.js"></script><script>
+<script src="engine-part-1.js"></script><script src="engine-part-2.js"></script><script src="engine-part-3.js"></script><script src="engine-part-4.js"></script><script src="engine-part-5.js"></script><script src="game-engine-loader.js"></script><script>
 BondiEngineReady.then(()=>{
 const $=id=>document.getElementById(id);let state=null,selected=null,aiTimer=null,resolutionTimer=null,resolutionPause=false,fullGameLog=[],lastTapCard=null,lastTapAt=0;
 const cardText=c=>`${c.rank}${c.suit}`;
