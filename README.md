@@ -21,3 +21,17 @@ The Game 3 endgame is now covered directly: when AI 1 faced two one-card opponen
 
 ## Mobile deployment
 The working Stage 4.0.1 plain-source loader is retained: no Base64, gzip, DecompressionStream, or external decompression dependency. Full Game Logs identify `Build: Stage 4.1`.
+
+
+## Automated AI validation harness
+
+Stage 4.1 now has a reproducible broader-validation harness. The current validation gate ran:
+
+- 500 complete four-player Hard-AI games
+- 1,000 constructed multi-one-card terminal scenarios
+- 500 constructed established-conveyor scenarios with a publicly-known safe suit
+- the exact Game 3 double-finish regression plus an immediate-Bondi sequencing regression
+
+Current result: **PASS** — 0 illegal moves, 0 stalls, 0 publicly-known avoidable multi-finish leads, 0 targeted terminal failures, and 0 targeted conveyor failures.
+
+See `HARNESS-RESULTS.md` for the report. The downloadable validation package contains the executable harness and full JSON result set.
