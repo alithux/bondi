@@ -10,6 +10,8 @@
 
   const ROOM_PREFIX = 'bondi:room:';
   const BUS_PREFIX = 'bondi:bus:';
+  const MAIL_PREFIX = 'bondi:mail:';
+  const MAIL_TTL_MS = 10 * 60 * 1000;
   const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
   function id() {
@@ -45,31 +47,99 @@
       this.instanceId = id();
       this.channel = null;
       this.storageHandler = null;
+      this.focusHandler = null;
+      this.visibilityHandler = null;
+      this.pollTimer = null;
+      this.seen = new Set();
+      this.mailPrefix = `${MAIL_PREFIX}${code}:`;
+
       if ('BroadcastChannel' in root) {
-        this.channel = new BroadcastChannel(`bondi-room-${code}`);
-        this.channel.onmessage = e => this._receive(e.data);
-      } else {
-        this.storageHandler = e => {
-          if (e.key !== BUS_PREFIX + code || !e.newValue) return;
-          try { this._receive(JSON.parse(e.newValue)); } catch (_) {}
-        };
-        root.addEventListener('storage', this.storageHandler);
+        try {
+          this.channel = new BroadcastChannel(`bondi-room-${code}`);
+          this.channel.onmessage = e => this._receive(e.data);
+        } catch (_) { this.channel = null; }
       }
+
+      this.storageHandler = e => {
+        if (!e || !e.key || !e.newValue || !e.key.startsWith(this.mailPrefix)) return;
+        try { this._receive(JSON.parse(e.newValue)); } catch (_) {}
+      };
+      root.addEventListener('storage', this.storageHandler);
+      this.focusHandler = () => this.poll();
+      this.visibilityHandler = () => this.poll();
+      root.addEventListener('focus', this.focusHandler);
+      root.addEventListener('visibilitychange', this.visibilityHandler);
+      this.pollTimer = root.setInterval ? root.setInterval(() => this.poll(), 450) : setInterval(() => this.poll(), 450);
+      this.poll();
     }
     _receive(message) {
       if (!message || message.transportInstance === this.instanceId) return;
+      const messageId = message.messageId || message.nonce;
+      if (messageId && this.seen.has(messageId)) return;
+      if (messageId) {
+        this.seen.add(messageId);
+        if (this.seen.size > 500) this.seen = new Set(Array.from(this.seen).slice(-250));
+      }
       this.handler(message);
     }
+    _writeMailbox(payload) {
+      try {
+        localStorage.setItem(this.mailPrefix + payload.messageId, JSON.stringify(payload));
+      } catch (_) {}
+    }
+    _cleanupMailbox(now = Date.now()) {
+      try {
+        const remove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key || !key.startsWith(this.mailPrefix)) continue;
+          try {
+            const msg = JSON.parse(localStorage.getItem(key) || 'null');
+            if (!msg || !msg.sentAt || now - msg.sentAt > MAIL_TTL_MS) remove.push(key);
+          } catch (_) { remove.push(key); }
+        }
+        remove.forEach(key => localStorage.removeItem(key));
+      } catch (_) {}
+    }
+    poll() {
+      try {
+        const messages = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key || !key.startsWith(this.mailPrefix)) continue;
+          try {
+            const msg = JSON.parse(localStorage.getItem(key) || 'null');
+            if (msg) messages.push(msg);
+          } catch (_) {}
+        }
+        messages.sort((a, b) => (a.sentAt || 0) - (b.sentAt || 0));
+        messages.forEach(msg => this._receive(msg));
+        this._cleanupMailbox();
+      } catch (_) {}
+    }
     send(message) {
-      const payload = Object.assign({}, message, { transportInstance: this.instanceId, sentAt: Date.now(), nonce: Math.random().toString(36).slice(2) });
-      if (this.channel) this.channel.postMessage(payload);
-      else {
-        try { localStorage.setItem(BUS_PREFIX + this.code, JSON.stringify(payload)); } catch (_) {}
+      const messageId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${this.instanceId}`;
+      const payload = Object.assign({}, message, {
+        transportInstance: this.instanceId,
+        sentAt: Date.now(),
+        nonce: messageId,
+        messageId
+      });
+      if (this.channel) {
+        try { this.channel.postMessage(payload); } catch (_) {}
       }
+      this._writeMailbox(payload);
+      try { localStorage.setItem(BUS_PREFIX + this.code, JSON.stringify(payload)); } catch (_) {}
     }
     close() {
       if (this.channel) this.channel.close();
       if (this.storageHandler) root.removeEventListener('storage', this.storageHandler);
+      if (this.focusHandler) root.removeEventListener('focus', this.focusHandler);
+      if (this.visibilityHandler) root.removeEventListener('visibilitychange', this.visibilityHandler);
+      if (this.pollTimer) {
+        if (root.clearInterval) root.clearInterval(this.pollTimer); else clearInterval(this.pollTimer);
+      }
+      this.pollTimer = null;
     }
   }
 
@@ -104,7 +174,7 @@
         clientId: this.clientId,
         seat: seat ? seat.seat : null,
         isHost: this.isHost,
-        transport: 'local-browser'
+        transport: 'local-browser-resumable'
       });
     }
 
@@ -144,8 +214,8 @@
       this.transport.send({ type: 'JOIN_REQUEST', clientId: this.clientId, name: this.name });
       clearTimeout(this.joinTimer);
       this.joinTimer = setTimeout(() => {
-        if (!this.room) this._fail('Room not found on this browser. Make sure the host room is open in another tab/window.');
-      }, 2500);
+        if (!this.room) this._fail('Still waiting for the host tab. On iPhone, switch to the host tab once, then come back here.');
+      }, 12000);
       this._emit();
       return code;
     }
