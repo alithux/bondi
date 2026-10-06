@@ -1,16 +1,20 @@
-# BONDI
+# BONDI Stage 4.0 — Strategic AI Rewrite
 
-Mobile-first BONDI playable prototype — Stage 3.17.
+Stage 4 replaces the patch-by-patch Hard-AI decision flow with a unified strategic layer while preserving the confirmed BONDI rules and the mobile-first game.
 
-## Stage 3.17 — Multi-Threat Endgame Lock
+## Strategic architecture
 
-- Hard AI now evaluates the whole table when multiple opponents are within five cards.
-- Repeated Bondi feeds where the same AI keeps taking cards while an opponent sheds cards are treated as an escalating conveyor risk.
-- Confirmed 1–3 card escapes remain the strongest hard danger.
-- Four- and five-card repeated-feed patterns are now detected earlier so the AI can avoid creating an unavoidable two-threat finish when a materially safer lead exists.
-- If every available lead is dangerous, the AI keeps the least damaging routes instead of assuming a safe option exists.
-- Stage 3.16 heads-up void lock remains intact.
-- Mobile-first UI remains intact.
-- Hosted engine assets are cache-busted with v=3.17 and Full Game Logs now include the build number.
+- **Public-state model:** one shared model tracks confirmed voids, publicly returned cards, recent legal follows, Bondi history, opponent card counts, and publicly inferable suit exhaustion.
+- **Candidate lead evaluation:** every legal Hard-AI lead is scored against actual seat order and estimated probability that each opponent can follow before the first Bondi.
+- **Whole-table scoring:** final-card danger, 1–5 card threats, repeated Bondi conveyors, self-growth, suit depletion, and safe follow routes are considered together rather than as isolated override rules.
+- **Consequence threshold:** ordinary tactical play stays stable unless the strategic model sees a materially better table outcome, reducing oscillation and overfitting.
+- **Contextual following:** when a later confirmed Bondi is predictable, Hard AI can deliberately stay below the current high card instead of unnecessarily becoming the likely Bondi recipient.
+- **Bondi rule preserved:** when Hard AI gives Bondi, it still gives the highest-value card in the strategically chosen suit.
 
-**56/56 automated tests pass.**
+## Validation
+
+- 60/60 automated regression and Stage 4 tests pass.
+- 80/80 complete four-player Hard-AI simulation games finished normally.
+- No illegal AI moves or stalled games in the simulation batch.
+
+The goal of Stage 4 is to make future improvements at the model/scoring level rather than adding one special-case patch after every game log.
