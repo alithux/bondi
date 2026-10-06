@@ -1,7 +1,8 @@
 /* BONDI Stage 5 browser multiplayer transport/controller.
-   Stage 5.0 uses BroadcastChannel (with localStorage fallback), so rooms work
-   across tabs/windows on the same browser profile. The controller is host-
-   authoritative and is intentionally backend-agnostic for the next online step. */
+   Stage 5.0.2 keeps the durable mailbox and adds a shared-browser authoritative
+   game snapshot. The active human tab can validate/apply its own move even when
+   iOS suspends the original host tab. This is only for same-browser testing; a
+   real online deployment will move authority to a server. */
 (function (root) {
   'use strict';
 
@@ -12,6 +13,7 @@
   const BUS_PREFIX = 'bondi:bus:';
   const MAIL_PREFIX = 'bondi:mail:';
   const MAIL_TTL_MS = 10 * 60 * 1000;
+  const GAME_PREFIX = 'bondi:game:';
   const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
   function id() {
@@ -38,6 +40,18 @@
   }
   function roomRegistryRemove(code) {
     try { localStorage.removeItem(ROOM_PREFIX + code); } catch (_) {}
+  }
+  function sharedGameRead(code) {
+    try {
+      const raw = localStorage.getItem(GAME_PREFIX + code);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) { return null; }
+  }
+  function sharedGameWrite(code, payload) {
+    try { localStorage.setItem(GAME_PREFIX + code, JSON.stringify(payload)); return true; } catch (_) { return false; }
+  }
+  function sharedGameRemove(code) {
+    try { localStorage.removeItem(GAME_PREFIX + code); } catch (_) {}
   }
 
   class RoomTransport {
@@ -163,6 +177,10 @@
       this.aiTimer = null;
       this.resolutionTimer = null;
       this.joinTimer = null;
+      this.syncTimer = null;
+      this.sharedRevision = 0;
+      this.sharedUpdatedAt = 0;
+      this.pauseUntil = 0;
       this.closed = false;
     }
 
@@ -174,7 +192,7 @@
         clientId: this.clientId,
         seat: seat ? seat.seat : null,
         isHost: this.isHost,
-        transport: 'local-browser-resumable'
+        transport: 'local-browser-active-tab-authority'
       });
     }
 
@@ -184,7 +202,77 @@
 
     _openTransport(code) {
       if (this.transport) this.transport.close();
+      clearInterval(this.syncTimer);
       this.transport = new RoomTransport(code, msg => this._onMessage(msg));
+      this.syncTimer = setInterval(() => this._syncSharedGame(), 300);
+    }
+
+    _isActiveTab() {
+      return root.document ? !root.document.hidden : this.isHost;
+    }
+
+    _adoptShared(shared, emit = true) {
+      if (!shared || !shared.room || !shared.game) return false;
+      const seat = Core.seatForClient(shared.room, this.clientId);
+      if (!seat) return false;
+      this.room = JSON.parse(JSON.stringify(shared.room));
+      this.game = JSON.parse(JSON.stringify(shared.game));
+      this.resolutionPause = !!shared.resolutionPause;
+      this.pauseUntil = Number(shared.pauseUntil || 0);
+      this.sharedRevision = Number(shared.revision || 0);
+      this.sharedUpdatedAt = Number(shared.updatedAt || 0);
+      this.view = Core.projectGame(this.room, this.game, this.clientId, this.resolutionPause);
+      if (emit) this._emit();
+      return true;
+    }
+
+    _commitSharedGame({ emit = true } = {}) {
+      if (!this.room || !this.game) return false;
+      const previous = sharedGameRead(this.room.code);
+      const revision = Math.max(this.sharedRevision || 0, previous && previous.revision || 0) + 1;
+      const payload = {
+        room: this.room,
+        game: this.game,
+        resolutionPause: !!this.resolutionPause,
+        pauseUntil: Number(this.pauseUntil || 0),
+        revision,
+        updatedAt: Date.now(),
+        actorClientId: this.clientId
+      };
+      if (!sharedGameWrite(this.room.code, payload)) return false;
+      this.sharedRevision = revision;
+      this.sharedUpdatedAt = payload.updatedAt;
+      this.view = Core.projectGame(this.room, this.game, this.clientId, this.resolutionPause);
+      if (emit) this._emit();
+      return true;
+    }
+
+    _syncSharedGame(force = false) {
+      const code = this.room && this.room.code || this.transport && this.transport.code;
+      if (!code) return false;
+      const shared = sharedGameRead(code);
+      if (!shared || !shared.room || !shared.game) return false;
+      const revision = Number(shared.revision || 0);
+      if (!force && revision <= this.sharedRevision) {
+        if (this.resolutionPause && this.pauseUntil && Date.now() >= this.pauseUntil && this._isActiveTab()) {
+          this.resolutionPause = false;
+          this.pauseUntil = 0;
+          this._commitSharedGame();
+          this._broadcastViews();
+          this._scheduleNext();
+          return true;
+        }
+        return false;
+      }
+      if (!this._adoptShared(shared, true)) return false;
+      if (this.resolutionPause && this.pauseUntil && Date.now() >= this.pauseUntil && this._isActiveTab()) {
+        this.resolutionPause = false;
+        this.pauseUntil = 0;
+        this._commitSharedGame();
+        this._broadcastViews();
+        this._scheduleNext();
+      }
+      return true;
     }
 
     createRoom(name) {
@@ -247,6 +335,8 @@
         this.room = started.room;
         this.game = started.game;
         this.resolutionPause = false;
+        this.pauseUntil = 0;
+        this._commitSharedGame();
         this._broadcastRoom();
         this._broadcastViews();
         this._scheduleNext();
@@ -255,38 +345,56 @@
 
     playCard(cardId) {
       if (!this.room || this.room.phase !== 'game') return;
-      if (this.resolutionPause && this.isHost) return this._fail('Wait for the Aiy resolution to finish.');
-      if (this.isHost) this._hostPlay(this.clientId, cardId);
-      else this.transport.send({ type: 'PLAY_REQUEST', clientId: this.clientId, cardId });
+      this._syncSharedGame(true);
+      if (this.resolutionPause) return this._fail('Wait for the Aiy resolution to finish.');
+      this._applySharedHumanPlay(this.clientId, cardId);
+    }
+
+    _applySharedHumanPlay(clientId, cardId) {
+      const code = this.room && this.room.code;
+      if (!code) return;
+      const shared = sharedGameRead(code);
+      if (shared && shared.room && shared.game) this._adoptShared(shared, false);
+      if (this.resolutionPause) return this._sendPlayError(clientId, 'Wait for the Aiy resolution to finish.');
+      const before = this.game;
+      const result = Core.applyHumanPlay(this.room, this.game, clientId, cardId, this.engine);
+      if (!result.ok) return this._sendPlayError(clientId, result.error);
+      this.game = result.state;
+      this._afterPlay(before);
+    }
+
+    _sendPlayError(clientId, message) {
+      if (clientId === this.clientId) this._fail(message);
+      else this._sendTo(clientId, { type: 'ERROR', message });
     }
 
     _hostPlay(clientId, cardId) {
-      if (this.resolutionPause) return;
-      const before = this.game;
-      const result = Core.applyHumanPlay(this.room, this.game, clientId, cardId, this.engine);
-      if (!result.ok) {
-        this._sendTo(clientId, { type: 'ERROR', message: result.error });
-        if (clientId === this.clientId) this._fail(result.error);
-        return;
-      }
-      this.game = result.state;
-      this._afterPlay(before);
+      this._applySharedHumanPlay(clientId, cardId);
     }
 
     _afterPlay(before) {
       const oldRes = before && before.lastResolution ? JSON.stringify(before.lastResolution) : '';
       const newRes = this.game && this.game.lastResolution ? JSON.stringify(this.game.lastResolution) : '';
       const resolved = !!newRes && oldRes !== newRes;
+      clearTimeout(this.resolutionTimer);
       if (resolved && !this.game.roundOver) {
         this.resolutionPause = true;
+        this.pauseUntil = Date.now() + this.resolutionDelay;
+        this._commitSharedGame();
         this._broadcastViews();
-        clearTimeout(this.resolutionTimer);
+        const expectedRevision = this.sharedRevision;
         this.resolutionTimer = setTimeout(() => {
+          const latest = sharedGameRead(this.room && this.room.code);
+          if (latest && Number(latest.revision || 0) !== expectedRevision) { this._syncSharedGame(true); return; }
           this.resolutionPause = false;
+          this.pauseUntil = 0;
+          this._commitSharedGame();
           this._broadcastViews();
           this._scheduleNext();
         }, this.resolutionDelay);
       } else {
+        this.pauseUntil = 0;
+        this._commitSharedGame();
         this._broadcastViews();
         this._scheduleNext();
       }
@@ -294,10 +402,13 @@
 
     _scheduleNext() {
       clearTimeout(this.aiTimer);
-      if (!this.isHost || !this.game || this.game.roundOver || this.resolutionPause) return;
+      if (!this.game || this.game.roundOver || this.resolutionPause) return;
       const seat = this.game.currentPlayer;
       if (!Core.isAISeat(this.room, seat)) return;
+      const expectedRevision = this.sharedRevision;
       this.aiTimer = setTimeout(() => {
+        const latest = sharedGameRead(this.room && this.room.code);
+        if (latest && Number(latest.revision || 0) !== expectedRevision) { this._syncSharedGame(true); return; }
         if (!this.game || this.game.roundOver || this.resolutionPause || !Core.isAISeat(this.room, this.game.currentPlayer)) return;
         const i = this.game.currentPlayer;
         const card = this.engine.chooseAICard(this.game, i, this.aiDifficulty);
@@ -322,7 +433,7 @@
     }
 
     _broadcastViews() {
-      if (!this.isHost || !this.room || !this.game) return;
+      if (!this.room || !this.game) return;
       this.room.seats.forEach(seat => {
         if (!seat || seat.isAI || !seat.clientId) return;
         const view = Core.projectGame(this.room, this.game, seat.clientId, this.resolutionPause);
@@ -355,6 +466,7 @@
               const replacement = Core.replaceClientWithAI(this.room, msg.clientId);
               this.room = replacement.room;
               if (this.game && this.game.players[replacement.seat]) this.game.players[replacement.seat].name = replacement.name;
+              this._commitSharedGame();
               this._broadcastRoom();
               this._broadcastViews();
               this._scheduleNext();
@@ -371,11 +483,11 @@
       } else if (msg.type === 'ROOM_STATE') {
         if (!this.room && !Core.seatForClient(msg.room, this.clientId)) return;
         this.room = msg.room;
-        this._emit();
+        if (msg.room.phase === 'game') this._syncSharedGame();
+        else this._emit();
       } else if (msg.type === 'GAME_VIEW') {
         this.room = msg.room || this.room;
-        this.view = msg.view;
-        this._emit();
+        if (!this._syncSharedGame()) { this.view = msg.view; this._emit(); }
       } else if (msg.type === 'ERROR') {
         this._fail(msg.message);
       } else if (msg.type === 'ROOM_CLOSED') {
@@ -389,10 +501,13 @@
       clearTimeout(this.aiTimer);
       clearTimeout(this.resolutionTimer);
       clearTimeout(this.joinTimer);
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
       if (notify && this.transport && this.room) {
         if (this.isHost) {
           this.transport.send({ type: 'ROOM_CLOSED' });
           roomRegistryRemove(this.room.code);
+          sharedGameRemove(this.room.code);
         } else {
           this.transport.send({ type: 'LEAVE', clientId: this.clientId });
         }
@@ -404,6 +519,9 @@
       this.view = null;
       this.isHost = false;
       this.resolutionPause = false;
+      this.pauseUntil = 0;
+      this.sharedRevision = 0;
+      this.sharedUpdatedAt = 0;
       if (notify) this._emit();
     }
   }
