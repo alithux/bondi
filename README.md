@@ -1,15 +1,16 @@
 # BONDI
 
-Mobile-first BONDI playable prototype — Stage 3.16.
+Mobile-first BONDI playable prototype — Stage 3.17.
 
-## Stage 3.16 — Heads-Up Void Lock + Conveyor Prevention
+## Stage 3.17 — Multi-Threat Endgame Lock
 
-- Hard AI removes confirmed-void heads-up lead suits whenever any plausible follow suit exists.
-- The hard lock runs before general endgame/follow-chain scoring, so another objective cannot revive a guaranteed Bondi conveyor.
-- If an AI gives the **2** of a suit as its highest Bondi discard, opponents can infer that AI has exhausted that suit.
-- The extra inference is not applied to the human player, because the current human UI still allows any legal off-suit card.
-- If every available lead suit is confirmed void for the opponent, the AI recognizes the Bondi as unavoidable and uses damage-control scoring.
-- Stage 3.8–3.15 multiplayer behavior is retained.
-- Mobile-first UI remains unchanged.
+- Hard AI now evaluates the whole table when multiple opponents are within five cards.
+- Repeated Bondi feeds where the same AI keeps taking cards while an opponent sheds cards are treated as an escalating conveyor risk.
+- Confirmed 1–3 card escapes remain the strongest hard danger.
+- Four- and five-card repeated-feed patterns are now detected earlier so the AI can avoid creating an unavoidable two-threat finish when a materially safer lead exists.
+- If every available lead is dangerous, the AI keeps the least damaging routes instead of assuming a safe option exists.
+- Stage 3.16 heads-up void lock remains intact.
+- Mobile-first UI remains intact.
+- Hosted engine assets are cache-busted with v=3.17 and Full Game Logs now include the build number.
 
-**54/54 automated tests pass.**
+**56/56 automated tests pass.**
