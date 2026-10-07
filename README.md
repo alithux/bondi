@@ -1,32 +1,29 @@
-# BONDI Stage 5.0.2 — Multiplayer Foundation · iPhone active-tab play fix
+# BONDI Stage 5.0.3 — Multiplayer Foundation · Hard AI Stage 4.2
 
-Stage 5.0.2 keeps the Stage 4.1 BONDI rules and Hard AI unchanged. It fixes multiplayer card play when iOS suspends the original host tab.
+Stage 5.0.3 keeps the Stage 5.0.2 same-browser multiplayer and iPhone active-tab synchronization, and upgrades Hard AI to **Stage 4.2 — Persistent Conveyor Breaker**.
 
-## What changed
-- The durable mailbox from Stage 5.0.1 remains for room/join actions.
-- At game start, the authoritative same-browser game snapshot is persisted in localStorage.
-- The active human player's tab validates and applies its own legal move from that shared snapshot.
-- The same active tab can advance following AI turns, so a sleeping host tab no longer blocks play.
-- Other tabs synchronize to the newest committed revision when they wake.
-- Resolution state is revisioned to avoid a stale tab overwriting a newer game state.
-- Multiplayer taps are no longer blocked by a leftover Solo-mode resolution pause.
-- Double-tap timing is slightly more forgiving on touch screens.
+## Stage 4.2 AI change
+- Detects when the same opponent has Bondied into the AI at least twice in a continuing recipient/giver conveyor.
+- If that opponent is confirmed void in the repeated lead suit and no opponent has a one-card emergency, Hard AI rejects materially worse repeated-feed leads when another suit reduces conveyor exposure.
+- This closes the multiplayer pattern where AI 2 repeatedly led 9♥ while Ali repeatedly Bondied and shed card after card.
+- A genuine one-card terminal threat still outranks the conveyor breaker, preserving Stage 4.1 terminal lookahead.
+- Stage 4.1 multi-threat terminal logic, heads-up logic, the highest-card Bondi rule, and the confirmed BONDI rules remain intact.
 
-## iPhone test flow
-1. Create the room in tab 1.
-2. Join with the code in tab 2.
-3. Switch to the host tab once so it accepts the queued join.
-4. Switch back to tab 2.
-5. Ready both humans, fill remaining seats with AI, and start.
-6. Once the game begins, play normally from whichever tab owns the current human turn; you no longer need to wake the host for each card.
+## Multiplayer
+Stage 5.0.2 behavior is retained: durable iPhone room mailbox, shared same-browser game snapshot, active-player move application while the original host tab is suspended, AI continuation, and revision-based recovery.
 
 ## Validation
-- Stage 4.1 rules/AI: **62/62 passed**.
+- Rules/AI regression suite: **64/64 passed**.
+- 500/500 complete four-player Hard-AI games.
+- 1,000/1,000 targeted terminal-lookahead cases.
+- 500/500 established conveyor cases.
+- 500/500 new persistent-conveyor conflict cases.
+- 0 illegal AI moves and 0 stalled AI games.
 - Multiplayer core: **13/13 passed**.
-- Standard browser room flow: **PASS**.
+- Standard browser multiplayer flow: **PASS**.
 - iPhone suspended-host join regression: **PASS**.
-- iPhone suspended-host guest card-play regression: **PASS**.
-- Mixed multiplayer simulation: **160/160 games**, **13,000 synchronized plays**, **0 illegal moves**, **0 stalls**.
+- iPhone suspended-host guest play regression: **PASS**.
+- Mixed multiplayer simulation: **160/160 games**, **13,124 synchronized plays**, **0 illegal moves**, **0 stalls**.
 
 ## Prototype security note
-Stage 5.0.2 is deliberately a same-browser prototype. The full authoritative game snapshot exists in browser storage so any active tab can keep the game moving when iOS suspends another tab. The BONDI UI still projects only the player's own Aiybai, but this is not a security boundary against browser developer tools. For real internet multiplayer, authority and hidden Aiybai will move to a server.
+Same-browser multiplayer stores the authoritative prototype game snapshot in browser storage so another active tab can continue when iOS suspends the host. The UI hides opponents’ Aiybai, but browser storage is not a security boundary. Real internet multiplayer will move authority and hidden Aiybai to a server.
