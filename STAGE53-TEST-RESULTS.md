@@ -31,3 +31,5 @@ Stage 5.3 adds a server-authoritative, host-initiated replay path that returns a
 **Limitation:** persistent same-room Play Again currently applies to Online mode only. The separate same-browser transport remains unchanged. The free Render server does not persist rooms across restarts or sleep.
 
 The complete automated test output and additional rematch tests are included in the downloadable Stage 5.3 ZIP.
+
+Deployment trigger: Stage 5.3 same-room online rematch release.
