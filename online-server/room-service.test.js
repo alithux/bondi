@@ -137,6 +137,27 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   assert.equal(welcomes.find(x=>x.type==='SNAPSHOT').room.phase,'lobby');
   ws.close();await wait(10);s.shutdown();await new Promise(resolve=>server.close(resolve));
  });
+ await test('Stage 5.3 rematch keeps room, resets human readiness and creates fresh game',async()=>{
+  const s=new RoomService({aiDelay:500,resolutionDelay:0});
+  try{
+   const h=create(s,'Ayya'),code=h.latest('WELCOME').code,g=join(s,code,'Fathun');
+   cmd(h,'ADD_AI');cmd(h,'ADD_AI');cmd(h,'READY',{ready:true});cmd(g,'READY',{ready:true});cmd(h,'START');
+   const entry=s.rooms.get(code);
+   assert.equal(entry.room.matchNumber,1);
+   cmd(h,'REMATCH');assert.match(h.latest('ERROR').message,/finish the current game/i);
+   entry.game.roundOver=true;
+   cmd(g,'REMATCH');assert.match(g.latest('ERROR').message,/only the host/i);
+   cmd(h,'REMATCH');assert.equal(entry.room.phase,'lobby');assert.equal(entry.game,null);
+   assert.deepEqual(entry.room.seats.map(x=>x.ready),[false,false,true,true]);
+   assert.equal(g.latest('SNAPSHOT').view,null);
+   cmd(h,'START');assert.match(h.latest('ERROR').message,/ready/i);
+   cmd(h,'READY',{ready:true});cmd(g,'READY',{ready:true});cmd(h,'START');
+   assert.equal(entry.room.matchNumber,2);assert.equal(entry.game.roundOver,false);
+   assert.equal(entry.game.players[0].hand.length,13);
+   assert.equal(g.latest('SNAPSHOT').view.players[0].hand.length,0);
+   assert.equal(entry.room.code,code);
+  }finally{s.shutdown();}
+ });
  // Server-local gameplay stress: single human + three Hard AI, no leaking or illegal plays.
  await test('20 complete online rooms with Hard AI and private seat projections',async()=>{
   const s=new RoomService({aiDelay:0,resolutionDelay:0});

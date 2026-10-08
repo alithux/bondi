@@ -1,4 +1,4 @@
-# BONDI Stage 5.1.1 — Online Multiplayer Deployment
+# BONDI Stage 5.3 — Online Multiplayer Deployment & Rematches
 
 The GitHub Pages website is static and cannot itself host online multiplayer. The new server is a standalone Node.js WebSocket service using the exact same BONDI Stage 4.2 engine chunks as the website. No database, API keys, or npm packages are required for this initial live-room milestone.
 
@@ -11,6 +11,12 @@ The GitHub Pages website is static and cannot itself host online multiplayer. Th
 **Website:** https://alithux.github.io/bondi/
 
 **Plan/region:** Free / Singapore. Render reports the service live. The website's `online-config.js` points to this server, and Online is the default room connection. The first connection can take roughly a minute after inactivity.
+
+## Starting another game in the same online room
+
+After a BONDI match is complete, the host sees **Play Again — same room**. This resets the room to a lobby while preserving the room code, online player seats, names and AI seats. Every human taps Ready again, and then the host starts the next game; the server deals entirely fresh Aiybai. The host may change the dealer before starting.
+
+The reconnect window is 60 seconds. If the host leaves during an ongoing match, a remaining human inherits host privileges so the room can be used for a rematch. The free Render service can sleep or restart and does not yet persist room data; such an interruption ends the room.
 
 ## Recreating the hosted deployment (Render)
 

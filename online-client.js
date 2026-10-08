@@ -1,4 +1,4 @@
-/* BONDI Stage 5.2: server-authoritative online client. Does not contain, run or
+/* BONDI Stage 5.3: server-authoritative online client with same-room rematches. Does not contain, run or
    receive other players' hidden Aiybai. Network failures are visible. */
 (function(root){
  'use strict';
@@ -103,6 +103,7 @@
    addAI(){this._send({type:'ACTION',action:'ADD_AI'});}
    removeAI(seat){this._send({type:'ACTION',action:'REMOVE_AI',seat:Number(seat)});}
    startGame(){this._send({type:'ACTION',action:'START'});}
+   requestRematch(){this._send({type:'ACTION',action:'REMATCH'});}
    playCard(cardId){this._send({type:'ACTION',action:'PLAY',cardId:String(cardId)});}
    leave(notify=true){
      clearTimeout(this.reconnectTimer);this.reconnectTimer=null;this.stopped=true;

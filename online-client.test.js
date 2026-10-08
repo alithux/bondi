@@ -73,6 +73,28 @@ function createClient(url,values=new Map()){const updates=[];const errors=[];
   await until(()=>g2.seat===1&&g2.clientId===oldGuestId&&g2.view,4000);
   assert.deepEqual(g2errors,[]);
   console.log('PASS new browser context recovers seat after page refresh');
+  // Stage 5.3 wire-level replay: server-authoritative finish is already
+  // tested with legitimate full games in online-server/rematch.test.js.
+  // Here a completed game state tests browser commands and WS snapshots.
+  service.rooms.get(code).game.roundOver=true;
+  service._broadcast(service.rooms.get(code));
+  await until(()=>h.view?.roundOver&&g2.view?.roundOver);
+  g2.requestRematch();
+  await until(()=>g2errors.some(x=>/only the host/i.test(x)));
+  h.requestRematch();
+  await until(()=>h.room?.phase==='lobby'&&g2.room?.phase==='lobby'&&h.view===null&&g2.view===null);
+  assert.equal(h.room.code,code);
+  assert.equal(g2.clientId,oldGuestId);
+  assert.equal(h.room.matchNumber,1);
+  assert.equal(h.room.seats[0].ready,false);
+  assert.equal(h.room.seats[1].ready,false);
+  h.setReady(true);g2.setReady(true);
+  await until(()=>h.room.seats[0].ready&&h.room.seats[1].ready);
+  h.startGame();
+  await until(()=>h.room.matchNumber===2&&h.view?.roundOver===false&&g2.view?.roundOver===false);
+  assert.equal(g2.view.players[0].hand.length,0);
+  assert.equal(h.view.players[1].hand.length,0);
+  console.log('PASS Stage 5.3 Play Again through two real WebSocket clients, private new Aiybai, unchanged room');
   h.leave();g2.leave();service.shutdown();
   console.log('ONLINE CLIENT + SERVER: ALL PASS');
  }finally{service.shutdown();for(const peer of peers)peer.socket.destroy();await new Promise(resolve=>server.close(resolve));}

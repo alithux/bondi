@@ -1,44 +1,22 @@
-# BONDI Stage 5.2 — Online Multiplayer Experience & Reliability
+# BONDI Stage 5.3 — Online Play Again & Same-Room Rematches
 
-**Playable website:** https://alithux.github.io/bondi/
+**Website:** https://alithux.github.io/bondi/
 **Online server:** https://bondi-online.onrender.com/health
-**Engine:** Stage 4.2 Hard AI (unchanged).
 
-Stage 5.2 builds on the first successful two-phone BONDI match in Stage 5.1.1. Two real phones can connect to the same four-seat room through a server-authoritative WebSocket service on Render (Singapore). Same-browser rooms and Solo remain available.
+Stage 5.3 fixes the missing replay option seen after the fully completed Ayya/Fathun/AI multiplayer match. The online host can tap **Play Again — same room** after a match completes. All connected people keep their seat/name and all AI seats remain. Every human marks **Ready** again, then the host selects **Start next game**. New 52-card hands are generated server-side. The dealer is retained for the host to change in the rematch lobby if desired. The same six-character room code and reconnect tokens remain valid.
 
-## What's new
+This release also promotes another seated human to host if the current host leaves during a game, so rematches are not permanently blocked. Only the new host can offer a rematch; requests during active games or from nonhosts are rejected. No active room is restarted automatically.
 
-- **Unambiguous player identities:** online rooms reject a second player's name if it duplicates an existing occupied seat (case insensitive, normalized whitespace); a player can choose another name and retry. Lobby, Aiy cards, player seats and exported log clearly show seat numbers.
-- **Your turn:** a high-visibility YOUR TURN banner appears on the active seat, and the tab title changes to "Your turn · BONDI" while it's your turn. It is visual only; no device notification permission is required.
-- **Connection health:** both lobby and game show connected/reconnecting/disconnected status. During reconnection the game disables submitting cards rather than pretending the move was sent.
-- **Server-controlled grace countdown:** when a person disconnects, other players see a countdown for that seat, from the server's existing 60-second grace period. Returning in time reclaims the same seat; when the deadline expires in an ongoing game, AI takes over.
-- **Reconnect now:** manual reconnect in addition to the existing automatic retry and same-tab refresh recovery.
-- **Name display safety:** user-defined names are HTML-escaped when inserted into the lobby/board.
+The verified Stage 4.2 Hard AI, BONDI rules, original local-browser transport, and Solo mode are unchanged. Local same-browser rooms still use their existing per-game flow; Play Again is for the hosted online mode.
 
-## How to play online
+## Online mode notes
 
-Open https://alithux.github.io/bondi/ on two phones. Choose **Multiplayer** and **Online — different phones** (selected by default). Enter distinct player names. One phone creates a room, the other enters the six-character room code. Mark both ready, fill remaining seats with AI, and start.
+- All human players must tap Ready for each additional game.
+- Rooms stay in server memory; a Render restart or free-tier sleep still ends active rooms.
+- A disconnected human retains their reserved seat for 60 seconds, even during the rematch lobby; after that timeout the seat may become empty and must be filled or rejoined.
+- An online player who explicitly leaves a game is replaced by AI; a new host is elected if necessary.
 
-When a person disconnects, their seat is reserved for up to 60 seconds in the current server process. The browser retries automatically; **Reconnect now** can be used if needed. To rejoin after a page refresh, choose **Reconnect previous online room** in the same browser tab.
+## Validation
 
-## Tests
+See `STAGE53-TEST-RESULTS.md` and run the included Node tests. Also inspect one real-world two-phone rematch before treating the feature as field-confirmed.
 
-- Game engine/rules: **64/64 passed**, unchanged Stage 4.2 AI.
-- Multiplayer core: **13/13 passed**.
-- New online tests: duplicate identity rejection, countdown on disconnect, resume without losing seat, AI replacement on timeout, manual retry: **PASS**.
-- Actual local WebSocket handshake and two-client game: **PASS**.
-- **20/20 online Hard-AI games**, zero illegal moves/stalls.
-- Browser interface VM regression: turn notification, name escaping, countdown, reconnection UI and input blocking: **PASS**.
-- Existing same-browser/iPhone join/iPhone play regressions: **PASS**.
-- Existing mixed multiplayer stress: **160/160 games** and **13,124 plays**.
-
-Full output: `STAGE52-TEST-OUTPUT.txt`; details: `ONLINE-TEST-RESULTS.md`.
-
-## Known limitations
-
-- Render free service may spin down after inactivity, causing a slow first connection and losing any rooms still in memory. It has no persistent game database.
-- Reconnection is limited to the same room and a currently valid server-issued token; after a timeout or server restart, players must create or join a new room.
-- The current game has no matchmaking, account login, push notifications, spectator system, or spectator security policy.
-- Do not run multiple server replicas without shared atomic game/session state.
-
-The server remains authoritative for moves and hidden Aiybai; no change was made to the BONDI engine, cards or Hard AI.

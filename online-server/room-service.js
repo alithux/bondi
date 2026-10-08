@@ -98,12 +98,23 @@ class RoomService {
       this._leave(s,entry);peer._bondiv2.token=null;
       peer.sendJSON({type:'LEFT'});return;
     }
+    if(action==='REMATCH'){
+      if(s.clientId!==entry.room.hostClientId)throw Error('Only the host can request another game.');
+      if(entry.room.phase!=='game'||!entry.game||!entry.game.roundOver)throw Error('Finish the current game before starting another.');
+      clearTimeout(entry.aiTimer);clearTimeout(entry.resolutionTimer);
+      entry.aiTimer=null;entry.resolutionTimer=null;entry.resolutionPause=false;entry.pauseUntil=0;
+      entry.game=null;
+      entry.room.phase='lobby';
+      entry.room.seats.forEach(seat=>{seat.ready=!!seat.isAI;});
+      entry.room.updatedAt=Date.now();entry.revision++;
+      this._broadcast(entry);return;
+    }
     if(entry.room.phase==='lobby'){
       const t={READY:'SET_READY',DEALER:'SET_DEALER',ADD_AI:'ADD_AI',REMOVE_AI:'REMOVE_AI',NAME:'SET_NAME'}[action];
       if(action==='START'){
         if(s.clientId!==entry.room.hostClientId)throw Error('Only the host can start.');
         const started=Core.startGame(entry.room,Engine,secureRandom);
-        entry.room=started.room;entry.game=started.game;entry.revision++;
+        entry.room=started.room;entry.room.matchNumber=(Number(entry.room.matchNumber)||0)+1;entry.game=started.game;entry.revision++;
         this._broadcast(entry);this._schedule(entry);return;
       }
       if(!t)throw Error('That action is not allowed in the lobby.');
@@ -170,6 +181,13 @@ class RoomService {
       const r=Core.replaceClientWithAI(entry.room,s.clientId);entry.room=r.room;
       delete entry.room.seats[r.seat].reconnectUntil;
       entry.game.players[r.seat].name=r.name;
+      // When a host leaves mid-game, promote the next human so an ended
+      // match still has someone who can request a rematch.
+      if(entry.room.hostClientId===s.clientId){
+        const candidate=entry.room.seats.filter(x=>x.clientId&&!x.isAI)
+          .sort((a,b)=>Number(b.connected)-Number(a.connected)||a.seat-b.seat)[0];
+        entry.room.hostClientId=candidate?candidate.clientId:null;
+      }
       entry.revision++;this._broadcast(entry);this._schedule(entry);
     }
     if(s.disconnectTimer)clearTimeout(s.disconnectTimer);
