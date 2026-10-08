@@ -1,15 +1,15 @@
-# BONDI Stage 5.1 — Online Multiplayer Foundation
+# BONDI Stage 5.1.1 — Live Online Multiplayer
 
 **Playable website:** https://alithux.github.io/bondi/
 
 **Current game:** BONDI Stage 5.1 UI, confirmed Stage 4.2 Hard AI and rules, Stage 5.0.3 same-browser multiplayer preserved.
 
-Stage 5.1 adds a *separate* server-authoritative WebSocket game mode. Once a server is deployed, people on different phones can create and join the same four-seat room, play BONDI together, and fill unused seats with Hard AI. The server alone holds full Aiybai and validates each move. The static GitHub Pages website continues to work without an online server for Solo vs AI and Same-browser tabs.
+Stage 5.1.1 connects the *separate* server-authoritative WebSocket game mode to a live free Render service in Singapore. People on different phones can create and join the same four-seat room, play BONDI together, and fill unused seats with Hard AI. The server alone holds full Aiybai and validates each move. The static GitHub Pages website continues to work without an online server for Solo vs AI and Same-browser tabs.
 
 ### Features added
 
 - Select **Same-browser tabs** or **Online — different phones** on the multiplayer screen.
-- Enter an online server HTTPS address; the browser connects over WSS.
+- The server URL is preconfigured as **https://bondi-online.onrender.com**; the browser connects over WSS.
 - Create/join rooms, Ready, host/dealer controls, AI-filled seats, turn-by-turn real-time synchronization.
 - Server-private Aiybai, validated turns/Bondi/finish order, game-over results.
 - Reconnect after an interrupted connection, and **Reconnect previous online room** after refreshing the same tab.
@@ -18,7 +18,7 @@ Stage 5.1 adds a *separate* server-authoritative WebSocket game mode. Once a ser
 
 ### How to deploy
 
-See **[ONLINE-DEPLOY.md](ONLINE-DEPLOY.md)**. The online server is **not yet hosted**, so this milestone cannot claim that two arbitrary phones can already connect through the public GitHub Pages site. A Render or other Node server connection is the remaining deployment step.
+See **[ONLINE-DEPLOY.md](ONLINE-DEPLOY.md)**. The online server is now deployed on Render's free plan. Choose Online in Multiplayer to create a room from one phone and join from another. See the deployment file for limitations.
 
 ### Verified tests
 
@@ -31,4 +31,4 @@ See **[ONLINE-DEPLOY.md](ONLINE-DEPLOY.md)**. The online server is **not yet hos
 
 ### Known tradeoffs
 
-The live game server uses memory storage and needs a host that accepts WebSocket upgrades. A restart ends its active rooms. No npm dependency is required. No public server domain is configured until one is deployed.
+The live game server uses memory storage and needs a host that accepts WebSocket upgrades. A restart ends its active rooms. No npm dependency is required. Free Render services sleep after about 15 minutes without incoming traffic, so the first connection may take around one minute. In-memory active rooms are lost if the server restarts or sleeps.

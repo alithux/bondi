@@ -1,8 +1,18 @@
-# BONDI Stage 5.1 — Deploy real online multiplayer
+# BONDI Stage 5.1.1 — Online Multiplayer Deployment
 
 The GitHub Pages website is static and cannot itself host online multiplayer. The new server is a standalone Node.js WebSocket service using the exact same BONDI Stage 4.2 engine chunks as the website. No database, API keys, or npm packages are required for this initial live-room milestone.
 
-## Hosted deployment (Render)
+## Live deployment
+
+**Render service:** https://bondi-online.onrender.com
+
+**WebSocket:** wss://bondi-online.onrender.com/ws
+
+**Website:** https://alithux.github.io/bondi/
+
+**Plan/region:** Free / Singapore. Render reports the service live. The website's `online-config.js` points to this server, and Online is the default room connection. The first connection can take roughly a minute after inactivity.
+
+## Recreating the hosted deployment (Render)
 
 1. Connect the **Render** service to the GitHub repository `alithux/bondi` or use the Render integration in ChatGPT to provision a web service.
 2. Configure a **Web Service** from the GitHub repository, branch `main`:
@@ -14,8 +24,8 @@ The GitHub Pages website is static and cannot itself host online multiplayer. Th
    - `PORT`: leave managed by the hosting provider (the server reads it automatically)
 3. Wait for `/health` on the provider's **HTTPS** domain to report `{ "ok": true, ... }`.
 4. On https://alithux.github.io/bondi/ choose **Multiplayer** → **Online — different phones**.
-5. Enter the server's HTTPS address (the app converts it to WSS and appends `/ws`); then create a room. On another phone, enter the **same server address** and room code to join.
-6. After the hosted server is confirmed working, set `window.BONDI_ONLINE_SERVER_URL` inside the checked-in `online-config.js` to that public HTTPS address. The input will then prefill automatically for all players.
+5. The website already fills the server address. Create a room; on another phone open the same website and enter its room code.
+6. The checked-in `online-config.js` already points to this Render service. Only edit it when migrating to another host.
 
 The included `render.yaml` can also be used to create the service as a Render Blueprint. Service names and hosting plans can depend on account availability and may incur charges; verify these before accepting deployment.
 
@@ -48,11 +58,11 @@ Server endpoints: `GET /health`, `WebSocket /ws`.
 
 ## Current limitations
 
-- Server process memory holds active games, so **a server restart ends rooms**.
+- Server process memory holds active games, so **a server restart or free-tier spin-down ends rooms**.
 - Players do not have accounts; room codes are invitations, not persistent identities.
 - A disconnected player has **60 seconds** to reclaim their seat before the server replaces them with AI in an active game.
 - No matchmaking, spectator mode, payments, rankings, database, or multi-instance clustering.
 - Do not scale this prototype across multiple server instances without shared session/game state and an atomic action mechanism.
-- The online server is not deployed just because the website is published. Online mode explicitly requires a reachable WSS service.
+- The live service is deployed, but its free plan spins down after 15 minutes of inactivity and can take around one minute to wake. The client retries connections.
 
 The browser stores only the player's opaque session token in that tab's `sessionStorage`; it does not store or obtain other players' hidden cards. The server applies all legal-move checks and never accepts a client-provided game state.
