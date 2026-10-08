@@ -20,3 +20,6 @@ The verified Stage 4.2 Hard AI, BONDI rules, original local-browser transport, a
 
 See `STAGE53-TEST-RESULTS.md` and run the included Node tests. Also inspect one real-world two-phone rematch before treating the feature as field-confirmed.
 
+## Current release
+
+Stage 5.3 includes **Play Again** for completed online matches. The online host can return the same room to the lobby; all human players must mark Ready again before fresh hands are dealt. Server and GitHub Pages deployments must both complete before using this feature on different phones.
