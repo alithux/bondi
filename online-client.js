@@ -1,4 +1,4 @@
-/* BONDI Stage 5.1: server-authoritative online client. Does not contain, run or
+/* BONDI Stage 5.2: server-authoritative online client. Does not contain, run or
    receive other players' hidden Aiybai. Network failures are visible. */
 (function(root){
  'use strict';
@@ -44,7 +44,7 @@
      this.ws=ws;
      ws.addEventListener('open',()=>{
        if(generation!==this.generation)return;
-       this.reconnectTries=0;this.status='connected';this._emit();
+       this.reconnectTries=0;this.status=this.session?.token?'reconnecting':'connecting';this._emit();
        if(this.session?.code&&this.session.token){this._send({type:'RESUME',code:this.session.code,token:this.session.token});}
        else if(this.intent){this._send(this.intent);}
      });
@@ -60,7 +60,7 @@
        }else if(msg.type==='ERROR'){
          this._error(msg.message);
          if(/session expired|seat is no longer available/i.test(msg.message||'')){
-           this.session=null;this._storeSession();this.stopped=true;ws.close();
+           this.session=null;this._storeSession();this.stopped=true;this.status='expired';this._emit();ws.close();
          }
        }else if(msg.type==='ROOM_CLOSED'||msg.type==='LEFT'){
          this.session=null;this._storeSession();this.room=null;this.view=null;
@@ -74,7 +74,7 @@
        this.ws=null;
        if(this.stopped)return;
        this.status='disconnected';this._emit();
-       if(++this.reconnectTries>12){this._error('Could not reconnect to the online server.');this.stopped=true;return;}
+       if(++this.reconnectTries>12){this.status='failed';this.stopped=true;this._emit();this._error('Could not reconnect. Tap Reconnect now to try again.');return;}
        const delay=Math.min(12000,500*2**Math.min(this.reconnectTries,5));
        this.reconnectTimer=setTimeout(()=>this._open(),delay);
      });
@@ -85,6 +85,15 @@
      this._open();
    }
    resumeRoom(){if(!this.session?.token||!this.session?.code)throw Error('No recent online room to reconnect.');this.stopped=false;this.intent=null;this._open();}
+   retryConnection(){
+     if(!this.session?.token&&!this.intent)throw Error('Create or join a room first.');
+     if(this.status==='connected'&&this.ws?.readyState===1)return;
+     const previous=this.ws;
+     this.generation++;
+     this.ws=null;
+     if(previous)try{previous.close();}catch(_){}
+     this.stopped=false;this.reconnectTries=0;this._open();
+   }
    createRoom(name){this._begin({type:'CREATE',name:String(name||'').trim().slice(0,24)});}
    joinRoom(name,code){code=normalizeCode(code);if(code.length!==6)throw Error('Enter the 6-character room code.');
      this._begin({type:'JOIN',name:String(name||'').trim().slice(0,24),code});}

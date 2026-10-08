@@ -57,6 +57,14 @@ function createClient(url,values=new Map()){const updates=[];const errors=[];
   console.log('PASS guest session auto-reconnect and seat recovery');
   assert.deepEqual(herrors,[]);
   assert.deepEqual(gerrors,[]);
+  // Stage 5.2: manual retry should reclaim the same reserved seat without
+  // creating a second room or leaking hidden opponents' Aiybai.
+  g.ws.close();
+  await until(()=>g.status==='disconnected');
+  g.retryConnection();
+  await until(()=>g.status==='connected'&&g.seat===1&&g.clientId===clientId,4000);
+  assert.equal(g.view.players[0].hand.length,0);
+  console.log('PASS Stage 5.2 reconnect-now recovers original private seat');
   // Browser refresh: old context stops without sending LEAVE; new context
   // reuses sessionStorage token and reclaims the same server seat.
   const oldGuestId=g.clientId;g.stopped=true;g.ws.close();

@@ -74,6 +74,53 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   assert.equal(r.latest('SNAPSHOT').room.seats[1].connected,true);
   s.shutdown();
  });
+ await test('Stage 5.2 rejects duplicate online identities without consuming a seat',async()=>{
+  const s=new RoomService({graceMs:200});
+  const h=create(s,'Ali'),code=h.latest('WELCOME').code;
+  const dup=join(s,code,'  aLi  ');
+  assert.match(dup.latest('ERROR').message,/name is already used/i);
+  assert.equal(dup.latest('WELCOME'),undefined);
+  assert.equal(s.rooms.get(code).room.seats[1].clientId,null);
+  const g=join(s,code,'Mariam');assert.equal(g.latest('SNAPSHOT').seat,1);
+  cmd(g,'NAME',{name:'ali'});
+  assert.match(g.latest('ERROR').message,/name is already used/i);
+  assert.equal(s.rooms.get(code).room.seats[1].name,'Mariam');
+  cmd(g,'NAME',{name:'Hassan'});
+  assert.equal(s.rooms.get(code).room.seats[1].name,'Hassan');
+  s.shutdown();
+ });
+ await test('Stage 5.2 disconnected seat shows server-provided deadline and clears on resume',async()=>{
+  const s=new RoomService({graceMs:120,aiDelay:2,resolutionDelay:2});
+  const h=create(s,'Ali'),code=h.latest('WELCOME').code,g=join(s,code,'Mariam');
+  const {token,clientId}=g.latest('WELCOME');
+  const before=Date.now();g.close();
+  const seat=h.latest('SNAPSHOT').room.seats[1];
+  assert.equal(seat.connected,false);
+  assert.ok(seat.reconnectUntil>=before+100&&seat.reconnectUntil<=Date.now()+130);
+  const r=peer(s);r.write({type:'RESUME',code,token});
+  assert.equal(r.latest('WELCOME').clientId,clientId);
+  const resumed=h.latest('SNAPSHOT').room.seats[1];
+  assert.equal(resumed.connected,true);assert.equal(resumed.reconnectUntil,undefined);
+  await wait(145);
+  assert.equal(s.rooms.get(code).room.seats[1].name,'Mariam');
+  s.shutdown();
+ });
+ await test('Stage 5.2 expired disconnected game seat becomes AI and gameplay continues',async()=>{
+  const s=new RoomService({graceMs:80,aiDelay:2,resolutionDelay:1});
+  const h=create(s,'Ali'),code=h.latest('WELCOME').code,g=join(s,code,'Mariam');
+  cmd(h,'ADD_AI');cmd(h,'ADD_AI');cmd(h,'READY',{ready:true});cmd(g,'READY',{ready:true});cmd(h,'START');
+  assert.equal(s.rooms.get(code).room.phase,'game');
+  const token=g.latest('WELCOME').token;g.close();
+  assert.equal(h.latest('SNAPSHOT').room.seats[1].connected,false);
+  await wait(110);
+  const snap=h.latest('SNAPSHOT');
+  assert.equal(snap.room.seats[1].isAI,true);
+  assert.equal(snap.room.seats[1].clientId,null);
+  assert.equal(snap.room.seats[1].reconnectUntil,undefined);
+  const late=peer(s);late.write({type:'RESUME',code,token});
+  assert.match(late.latest('ERROR').message,/expired|available/);
+  s.shutdown();
+ });
  await test('real WebSocket handshake over Node HTTP, welcome and room state',async()=>{
   const s=new RoomService();
   const server=http.createServer((req,res)=>{res.writeHead(200);res.end('OK');});

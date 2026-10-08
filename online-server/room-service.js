@@ -11,8 +11,15 @@ function randomCode() { return Array.from({length:6},()=>CODE_ALPHABET[crypto.ra
 function secureRandom() {return crypto.randomInt(0x100000000)/0x100000000;}
 function clone(v){return JSON.parse(JSON.stringify(v));}
 function visibleRoom(room) {return clone(room);}
+function requireDistinctName(room, desired, exceptClientId=null) {
+  const name=Core.cleanName(desired);
+  const clash=room.seats.some(seat => (seat.clientId||seat.isAI) &&
+    seat.clientId!==exceptClientId && seat.name.toLowerCase()===name.toLowerCase());
+  if(clash)throw Error('That player name is already used in this room. Choose a different name.');
+  return name;
+}
 function translateFinishLogs(log,room) {
-  return log.map(x=>x.replace(/\bPlayer ([1-4]) has finished\./g,(_,n)=>`${room.seats[Number(n)-1].name} has finished.`));
+  return log.map(x=>x.replace(/\bPlayer ([1-4]) has finished\./g,(_,n)=>`${room.seats[Number(n)-1].name} (Seat ${n}) has finished.`));
 }
 class RoomService {
   constructor({aiDelay=650,resolutionDelay=1800,graceMs=SESSION_GRACE_MS, maxRooms=100,logger=()=>{}}={}) {
@@ -61,7 +68,7 @@ class RoomService {
     if(peer._bondiv2.token)throw Error('Leave the current room first.');
     const code=cleanCode(msg.code),entry=this.rooms.get(code);
     if(!entry||entry.room.phase!=='lobby')throw Error('Room not found or game already started.');
-    const clientId=crypto.randomUUID(),name=Core.cleanName(msg.name);
+    const clientId=crypto.randomUUID(),name=requireDistinctName(entry.room,msg.name);
     entry.room=Core.applyLobbyAction(entry.room,{type:'JOIN',clientId,name});
     this._freshSession(peer,entry,clientId,name);this._broadcast(entry);
   }
@@ -76,6 +83,7 @@ class RoomService {
     session.peer=peer;peer._bondiv2.token=token;session.lastSeen=Date.now();
     if(entry.room.phase==='lobby')entry.room=Core.applyLobbyAction(entry.room,{type:'RECONNECT',clientId:session.clientId});
     else {const seat=Core.seatForClient(entry.room,session.clientId);if(seat)seat.connected=true;}
+    const resumedSeat=Core.seatForClient(entry.room,session.clientId);if(resumedSeat)delete resumedSeat.reconnectUntil;
     peer.sendJSON({type:'WELCOME',code:entry.room.code,clientId:session.clientId,token});
     this._broadcast(entry);
   }
@@ -99,7 +107,8 @@ class RoomService {
         this._broadcast(entry);this._schedule(entry);return;
       }
       if(!t)throw Error('That action is not allowed in the lobby.');
-      entry.room=Core.applyLobbyAction(entry.room,{type:t,clientId:s.clientId,ready:!!msg.ready,seat:msg.seat,name:msg.name});
+      const name=t==='SET_NAME'?requireDistinctName(entry.room,msg.name,s.clientId):msg.name;
+      entry.room=Core.applyLobbyAction(entry.room,{type:t,clientId:s.clientId,ready:!!msg.ready,seat:msg.seat,name});
       this._broadcast(entry);return;
     }
     if(entry.room.phase!=='game'||action!=='PLAY')throw Error('That action is not allowed during the game.');
@@ -159,6 +168,7 @@ class RoomService {
       else this._broadcast(entry);
     }else if(entry.room.phase==='game'){
       const r=Core.replaceClientWithAI(entry.room,s.clientId);entry.room=r.room;
+      delete entry.room.seats[r.seat].reconnectUntil;
       entry.game.players[r.seat].name=r.name;
       entry.revision++;this._broadcast(entry);this._schedule(entry);
     }
@@ -175,6 +185,8 @@ class RoomService {
     if(!entry)return;
     if(entry.room.phase==='lobby')entry.room=Core.applyLobbyAction(entry.room,{type:'DISCONNECT',clientId:s.clientId});
     else {const seat=Core.seatForClient(entry.room,s.clientId);if(seat)seat.connected=false;}
+    const seat=Core.seatForClient(entry.room,s.clientId);
+    if(seat)seat.reconnectUntil=Date.now()+this.graceMs;
     this._broadcast(entry);
     s.disconnectTimer=setTimeout(()=>{
       const latest=this.rooms.get(s.roomCode);
@@ -202,4 +214,4 @@ class RoomService {
   }
   shutdown(){for(const code of [...this.rooms.keys()])this._closeRoom(code);}
 }
-module.exports={RoomService,cleanCode,translateFinishLogs};
+module.exports={RoomService,cleanCode,translateFinishLogs,requireDistinctName};

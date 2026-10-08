@@ -1,2 +1,2 @@
-// Public BONDI online server (no secret). Hosted on Render's free Singapore web service.
+// Hosted BONDI online multiplayer — public server URL (not a secret).
 window.BONDI_ONLINE_SERVER_URL = 'https://bondi-online.onrender.com';
