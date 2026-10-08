@@ -1,24 +1,17 @@
-# BONDI Stage 5.3 — Online Multiplayer Deployment & Rematches
+# BONDI Stage 5.4 — Online multiplayer server and rematch reliability
 
 The GitHub Pages website is static and cannot itself host online multiplayer. The new server is a standalone Node.js WebSocket service using the exact same BONDI Stage 4.2 engine chunks as the website. No database, API keys, or npm packages are required for this initial live-room milestone.
 
-## Live deployment
+## Live server
 
-**Render service:** https://bondi-online.onrender.com
+- Render service: https://bondi-online.onrender.com/health (free plan, Singapore)
+- Public website: https://alithux.github.io/bondi/
+- Online rooms can play multiple complete games without creating a new room: host taps Play Again, everyone marks Ready, host starts next game.
+- Stage 5.4 preserves original human names through AI takeover until the match ends; on the next rematch, abandoned seats receive unique AI names.
+- In a lobby, another connected human becomes host if the host leaves or times out, instead of closing the room.
+- As with earlier releases, the in-memory server and its rooms restart on deployment, server sleep, or outages; Render free may take about a minute to wake.
 
-**WebSocket:** wss://bondi-online.onrender.com/ws
-
-**Website:** https://alithux.github.io/bondi/
-
-**Plan/region:** Free / Singapore. Render reports the service live. The website's `online-config.js` points to this server, and Online is the default room connection. The first connection can take roughly a minute after inactivity.
-
-## Starting another game in the same online room
-
-After a BONDI match is complete, the host sees **Play Again — same room**. This resets the room to a lobby while preserving the room code, online player seats, names and AI seats. Every human taps Ready again, and then the host starts the next game; the server deals entirely fresh Aiybai. The host may change the dealer before starting.
-
-The reconnect window is 60 seconds. If the host leaves during an ongoing match, a remaining human inherits host privileges so the room can be used for a rematch. The free Render service can sleep or restart and does not yet persist room data; such an interruption ends the room.
-
-## Recreating the hosted deployment (Render)
+## Hosted deployment (Render)
 
 1. Connect the **Render** service to the GitHub repository `alithux/bondi` or use the Render integration in ChatGPT to provision a web service.
 2. Configure a **Web Service** from the GitHub repository, branch `main`:
@@ -30,8 +23,8 @@ The reconnect window is 60 seconds. If the host leaves during an ongoing match, 
    - `PORT`: leave managed by the hosting provider (the server reads it automatically)
 3. Wait for `/health` on the provider's **HTTPS** domain to report `{ "ok": true, ... }`.
 4. On https://alithux.github.io/bondi/ choose **Multiplayer** → **Online — different phones**.
-5. The website already fills the server address. Create a room; on another phone open the same website and enter its room code.
-6. The checked-in `online-config.js` already points to this Render service. Only edit it when migrating to another host.
+5. The HTTPS address is already pre-filled. Create a room and share its code with another phone.
+6. `online-config.js` already points to `https://bondi-online.onrender.com`.
 
 The included `render.yaml` can also be used to create the service as a Render Blueprint. Service names and hosting plans can depend on account availability and may incur charges; verify these before accepting deployment.
 
@@ -40,6 +33,7 @@ The included `render.yaml` can also be used to create the service as a Render Bl
 ```bash
 node online-server/server.js
 node online-server/room-service.test.js
+node online-server/stage54.test.js
 node online-client.test.js
 ```
 
@@ -69,6 +63,6 @@ Server endpoints: `GET /health`, `WebSocket /ws`.
 - A disconnected player has **60 seconds** to reclaim their seat before the server replaces them with AI in an active game.
 - No matchmaking, spectator mode, payments, rankings, database, or multi-instance clustering.
 - Do not scale this prototype across multiple server instances without shared session/game state and an atomic action mechanism.
-- The live service is deployed, but its free plan spins down after 15 minutes of inactivity and can take around one minute to wake. The client retries connections.
+- The online server is live separately from the static website; both must deploy successfully for internet multiplayer to function.
 
 The browser stores only the player's opaque session token in that tab's `sessionStorage`; it does not store or obtain other players' hidden cards. The server applies all legal-move checks and never accepts a client-provided game state.

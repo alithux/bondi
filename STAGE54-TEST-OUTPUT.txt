@@ -1,0 +1,163 @@
+BONDI Stage 5.4 — Player Identity and Rematch Reliability
+Thu Oct  8 15:46:21 UTC 2026
+
+============ game-engine.test.js ============
+PASS 52-card deck has unique cards and Ace is highest
+PASS equal deal supports 2 players and 4 players
+PASS dealer right starts
+PASS cannot play off-suit when player can follow suit
+PASS Bondi recipient who played their last card gets cards back and returns
+PASS last-card player is finished if a higher lead-suit card overtakes them
+PASS invalid turn rejected
+PASS AI Easy, Medium and Hard always choose legal cards
+PASS AI follows the lead suit when it has that suit
+PASS resolved Bondi keeps a snapshot of the Aiy for UI review
+PASS Hard AI avoids immediately re-leading a suit that just caused Bondi when another suit is available
+PASS Hard AI records an opponent void suit after Bondi
+PASS taking Bondi cards clears restored void-suit knowledge
+PASS Hard AI can target a suit an opponent is known to be empty in
+PASS Hard Bondi values creating an empty suit over blindly dumping an Ace
+PASS Hard AI stops feeding a known-void opponent after harmful Bondi
+PASS Bondi history records who benefited and who shed the Bondi card
+PASS Hard AI blocks a nearly-finished opponent across multiple known void suits
+PASS Hard AI does not switch from one known Bondi escape suit to another against danger player
+PASS Stage 3.6 protects against all near-finished opponents, not only the closest one
+PASS Stage 3.6 heavily avoids a confirmed void when opponent has one card left
+PASS Stage 3.7 tracks publicly returned Bondi cards and removes them when replayed
+PASS Stage 3.7 breaks a repeated Bondi conveyor when another critical opponent has a known safe suit
+PASS Stage 3.8 sorts Bondi-returned cards back into suit and rank order
+PASS Stage 3.8 Hard AI gives the highest card from its chosen Bondi suit
+PASS Stage 3.8 Medium AI gives the highest card from its chosen Bondi suit
+PASS Stage 3.8 Easy AI gives the highest card from its randomly selected Bondi suit
+PASS Stage 3.9 final-card containment follows an exactly known public last-card suit
+PASS Stage 3.9 uses revealed-card counting to choose the likeliest follow suit for a hidden final card
+PASS Stage 3.9 never invents a safe suit when every legal lead is a confirmed final-card escape
+PASS Stage 3.10 heads-up mode refuses a confirmed-void lead when another suit is available
+PASS Stage 3.10 heads-up mode prioritizes a publicly known follow suit
+PASS Stage 3.10 heads-up mode breaks the repeated void-suit conveyor from the Stage 3.9 log
+PASS Stage 3.11 prefers a seat-aware suit that can make a two-card opponent take a later Bondi
+PASS Stage 3.11 uses a low lead inside the downstream-Bondi trap suit
+PASS Stage 3.11 will not create a downstream last-card Bondi just to trap another near-finisher
+PASS Stage 3.11 avoids a high lead that would make the AI take the downstream Bondi itself
+PASS Stage 3.11 only treats void players after the near-finisher as downstream Bondi traps
+PASS Stage 3.12 assumes a near-finisher will duck under the lead when a losing follow card is publicly possible
+PASS Stage 3.12 uses a low lead when a known one-card opponent must overtake before a later Bondi
+PASS Stage 3.12 stops trap simulation at the first confirmed Bondi before the intended target
+PASS Stage 3.12 rejects a trap when an intervening player can overtake the near-finisher before Bondi
+PASS Stage 3.12 treats an unseen lower follow card as a plausible strategic escape
+PASS Stage 3.13 recipient remembers a harmful void suit even when another player originally led the Bondi Aiy
+PASS Stage 3.13 hard-gates a confirmed void suit when the immediate next opponent has three cards
+PASS Stage 3.13 immediate-next emergency gate still allows a forced void lead when there is no alternative suit
+PASS Stage 3.13 recipient repeat memory outranks offensive targeting of the same confirmed void suit
+PASS Stage 3.14 persistent recipient void lock cannot be overridden by a different one-card containment target
+PASS Stage 3.14 reachable near-finisher gate protects a later 1-card player when earlier seats can continue the Aiy
+PASS Stage 3.14 reachable gate protects a later 3-card player, not only the immediate next seat
+PASS Stage 3.15 ranks an unavoidable three-card Bondi as safer than a confirmed one-card finish later in the Aiy
+PASS Stage 3.15 follows multiple publicly known holders before blocking a later one-card void
+PASS Stage 3.16 heads-up hard lock removes confirmed-void leads before other scoring can revive them
+PASS Stage 3.16 infers an AI opponent is empty in a Bondi discard suit after it gives the 2 of that suit
+PASS Stage 3.17 table-wide lock breaks an established multi-threat Bondi conveyor
+PASS Stage 3.17 does not claim a safe lead when every remaining route feeds a near-finisher
+PASS Stage 4 unified planner blocks a confirmed one-card void even when ordinary tactics prefer that suit
+PASS Stage 4 unified planner preserves a publicly known final-card follow suit
+PASS Stage 4 follow planner ducks under the current high before a later confirmed Bondi
+PASS Stage 4 multi-threat planner keeps a non-void route when a repeated conveyor threatens two players
+PASS Stage 4.1 avoids the Game 3 double-finish route when the first Bondi can cut the Aiy short
+PASS Stage 4.1 prefers an immediate first Bondi over letting two one-card opponents act
+PASS Stage 4.2 breaks a persistent single-opponent conveyor even when a two-card threat benefits from the switch
+PASS Stage 4.2 preserves an immediate Bondi cutoff when a later opponent has one final card
+
+64 tests passed.
+
+============ multiplayer-core.test.js ============
+PASS creates four lobby seats with host in seat 1
+PASS joins humans into first available seats
+PASS host can fill empty lobby seats with AI
+PASS non-host cannot add AI or change dealer
+PASS all four human players must be ready
+PASS starting multiplayer maps lobby names into BONDI engine seats
+PASS projected game reveals only viewer Aiybai
+PASS player cannot submit a card when it is another seat turn
+PASS current human player can submit a legal move through authoritative core
+PASS AI seats are recognized separately from human clients
+PASS leaving player frees their lobby seat
+PASS host leaving closes the lobby
+PASS a human who leaves an active game can be replaced by AI without changing the BONDI state
+
+13/13 multiplayer-core tests passed.
+
+============ multiplayer-browser.test.js ============
+PASS Stage 5 browser room create/join/ready/start/sync/play flow
+
+============ multiplayer-browser-ios.test.js ============
+PASS iPhone suspended-tab durable mailbox join flow
+
+============ multiplayer-browser-ios-play.test.js ============
+PASS iPhone suspended-host guest play flow
+
+============ multiplayer-simulation.test.js ============
+PASS 160/160 mixed multiplayer games completed · 13124 plays · max 156
+
+============ multiplayer-stage52-ui.test.js ============
+PASS Stage 5.2 browser interface: turn banner, reconnect UI, server grace countdown, seat labels, name escaping
+
+============ multiplayer-stage53-ui.test.js ============
+PASS completed game displays host Play Again; sends exactly one online rematch request
+PASS guest sees wait-for-host message instead of host-only button
+PASS rematch returns guest to lobby and lets them mark Ready again
+PASS host can start fresh match only after every human player is Ready
+PASS Play Again control disappears for the new active match
+STAGE 5.3 BROWSER REMATCH UI: ALL PASS
+
+============ multiplayer-stage54-ui.test.js ============
+PASS game view identifies Ayya historically, clearly marks AI takeover and rematch substitution
+PASS Stage 5.4 exported log preserves completed human player name across AI takeover
+PASS next lobby shows AI seat only after original match history is cleared
+STAGE 5.4 BROWSER IDENTITY UI: ALL PASS
+
+============ online-client.test.js ============
+PASS online browser client creates room CY9TKM
+PASS different WebSocket clients join & sync lobby
+PASS deal + private Aiybai projections
+PASS human play validated by server and synchronized to guest
+PASS guest session auto-reconnect and seat recovery
+PASS Stage 5.2 reconnect-now recovers original private seat
+PASS new browser context recovers seat after page refresh
+PASS Stage 5.3 Play Again through two real WebSocket clients, private new Aiybai, unchanged room
+ONLINE CLIENT + SERVER: ALL PASS
+
+============ online-server/room-service.test.js ============
+PASS creates/join rooms; lobby identity and host-only controls
+PASS hidden opponents cards and valid move enforcement
+PASS opponent cannot forge turn, dealer, game state or another seat
+PASS disconnect and resume with secret restores seat; unknown token refused
+PASS Stage 5.2 rejects duplicate online identities without consuming a seat
+PASS Stage 5.2 disconnected seat shows server-provided deadline and clears on resume
+PASS Stage 5.2 expired disconnected game seat becomes AI and gameplay continues
+PASS real WebSocket handshake over Node HTTP, welcome and room state
+PASS Stage 5.3 rematch keeps room, resets human readiness and creates fresh game
+ONLINE STRESS: 20 complete games, 519 human moves, 0 illegal, 0 stalled
+PASS 20 complete online rooms with Hard AI and private seat projections
+
+============ online-server/rematch.test.js ============
+Stage 5.3 online same-room rematch regression
+PASS cannot request a rematch while the game is active
+PASS first complete two-human / two-Hard-AI BONDI match
+PASS host-only Play Again returns same room to lobby; no old game state leaks
+PASS reserved guest seat reconnects with original token between matches
+PASS second fresh shuffled match in same room, with dealer changed and private Aiybai
+PASS second complete game and third rematch lobby without changing room code
+PASS host reassignment enables replay when original host leaves
+STAGE 5.3 SAME-ROOM REMATCH: ALL PASS
+
+============ online-server/stage54.test.js ============
+PASS finished human keeps historic name after timeout; no retroactive AI rename
+PASS AI takeover can play an active former-human seat, preserving its name
+PASS finished departed host can regain Aiybai from Bondi and AI plays revived seat
+PASS rematch resets takeover seats into unique AI identities; game history stays distinct
+PASS leaving lobby host transfers ownership; guest can ready and start same room
+PASS lobby host connection timeout promotes guest; only human host absence closes room
+PASS rematch lobby stays open after original host times out, new host can begin match 3
+STAGE 5.4 LIVE SEAT IDENTITY AND HOST RESILIENCE: ALL PASS
+
+ALL STAGE 5.4 TEST COMMANDS PASSED

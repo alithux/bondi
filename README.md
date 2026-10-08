@@ -1,25 +1,31 @@
-# BONDI Stage 5.3 — Online Play Again & Same-Room Rematches
+# BONDI Stage 5.4 — Player Identity & Rematch Reliability
 
-**Website:** https://alithux.github.io/bondi/
-**Online server:** https://bondi-online.onrender.com/health
+**Game:** https://alithux.github.io/bondi/  
+**Online server:** https://bondi-online.onrender.com/health  
+**Engine:** BONDI rules + Hard AI Stage 4.2 (unchanged)
 
-Stage 5.3 fixes the missing replay option seen after the fully completed Ayya/Fathun/AI multiplayer match. The online host can tap **Play Again — same room** after a match completes. All connected people keep their seat/name and all AI seats remain. Every human marks **Ready** again, then the host selects **Start next game**. New 52-card hands are generated server-side. The dealer is retained for the host to change in the rematch lobby if desired. The same six-character room code and reconnect tokens remain valid.
+BONDI is a Maldivian multiplayer card game. **Aiy** (އަތް) means the played sequence, and **Aiybai** means a player's held cards. Four-player online rooms support players on different phones, AI-filled seats, real-time server-authoritative play, and **Play Again** in the same room. Solo vs AI and same-browser multiplayer remain available.
 
-This release also promotes another seated human to host if the current host leaves during a game, so rematches are not permanently blocked. Only the new host can offer a rematch; requests during active games or from nonhosts are rejected. No active room is restarted automatically.
+## What's new in Stage 5.4
 
-The verified Stage 4.2 Hard AI, BONDI rules, original local-browser transport, and Solo mode are unchanged. Local same-browser rooms still use their existing per-game flow; Play Again is for the hosted online mode.
+- **Original player identity persists for an entire match.** If Ayya finishes and later disconnects, AI may control that seat but historic log entries and player labels still say **Ayya (Seat 2)** instead of changing retroactively to “AI 3”.
+- During the match, such a seat is visibly labeled **AI takeover**. On **Play Again**, an abandoned seat receives a unique `AI N` identity for the new match; the previous match's history is no longer displayed.
+- **Bondi re-entry is supported.** Even a player who previously finished can collect a Bondi and return to active play. If they already left, AI can continue that seat after re-entry; their identity still remains the original name for that match.
+- **Lobby host failover.** If a host leaves or expires during a lobby/rematch lobby, another human becomes host so the room code, Ready flow and next match remain available. A lobby with no remaining human participants still closes.
+- Game rules, Stage 4.2 Hard AI, card legality, same-browser and Solo modes are **unchanged**.
 
-## Online mode notes
+## How to use
 
-- All human players must tap Ready for each additional game.
-- Rooms stay in server memory; a Render restart or free-tier sleep still ends active rooms.
-- A disconnected human retains their reserved seat for 60 seconds, even during the rematch lobby; after that timeout the seat may become empty and must be filled or rejoined.
-- An online player who explicitly leaves a game is replaced by AI; a new host is elected if necessary.
+1. Open the site on both phones; select **Multiplayer → Online — different phones**.
+2. Create a room on one phone, and join on the other using its code and different player names.
+3. Fill unused seats with AI, mark Ready, and start BONDI.
+4. After a game ends, the online host taps **Play Again — same room**. All remaining human players mark Ready before a new 52-card deal.
+5. If someone leaves, the match continues with AI control of that seat. A connection lost unexpectedly has a **60-second** reconnect window before AI takes over. The next match gives any vacated seat a new AI name; the host may remove that AI in the rematch lobby to make space for a returning person.
 
 ## Validation
 
-See `STAGE53-TEST-RESULTS.md` and run the included Node tests. Also inspect one real-world two-phone rematch before treating the feature as field-confirmed.
+See [STAGE54-TEST-RESULTS.md](STAGE54-TEST-RESULTS.md) and the included test scripts. Tests cover completed online matches, private Aiybai, room rematches, disconnects, AI takeover of a previously finished human, actual Bondi re-entry, host transfer in the lobby, and the mobile-oriented UI.
 
-## Current release
+**Limits:** This is a one-process, in-memory WebSocket server hosted on Render's free plan. Rooms are lost when the instance sleeps or restarts; waking can take time. There are no permanent player accounts, public matchmaking, or room persistence. The 60-second grace window is controlled by the server, not a phone.
 
-Stage 5.3 includes **Play Again** for completed online matches. The online host can return the same room to the lobby; all human players must mark Ready again before fresh hands are dealt. Server and GitHub Pages deployments must both complete before using this feature on different phones.
+Deployment details: [ONLINE-DEPLOY.md](ONLINE-DEPLOY.md). Same-browser local mode does not yet have same-room Play Again; only Online mode does.

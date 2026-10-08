@@ -105,7 +105,19 @@ class RoomService {
       entry.aiTimer=null;entry.resolutionTimer=null;entry.resolutionPause=false;entry.pauseUntil=0;
       entry.game=null;
       entry.room.phase='lobby';
-      entry.room.seats.forEach(seat=>{seat.ready=!!seat.isAI;});
+      // The previous match keeps human names even after AI takes a departed
+      // player's seat. Only now, with the previous log gone, assign fresh AI
+      // identities for the next match. Make them unique even after multiple
+      // takeovers, or when another player chose a name like 'AI 3'.
+      const names=new Set(entry.room.seats.filter(seat=>!seat.aiTakeover).map(seat=>seat.name.toLowerCase()));
+      entry.room.seats.forEach(seat=>{
+        if(seat.aiTakeover){
+          let n=1;while(names.has(`ai ${n}`))n++;
+          seat.name=`AI ${n}`;names.add(seat.name.toLowerCase());
+          delete seat.aiTakeover;
+        }
+        seat.ready=!!seat.isAI;
+      });
       entry.room.updatedAt=Date.now();entry.revision++;
       this._broadcast(entry);return;
     }
@@ -174,13 +186,29 @@ class RoomService {
   }
   _leave(s,entry){
     if(entry.room.phase==='lobby'){
+      // An expired/leaving lobby host must not destroy a room with guests.
+      // Transfer host authority before Core handles the LEAVE action.
+      if(entry.room.hostClientId===s.clientId){
+        const nextHost=entry.room.seats.filter(x=>x.clientId&&x.clientId!==s.clientId&&!x.isAI)
+          .sort((a,b)=>Number(b.connected)-Number(a.connected)||a.seat-b.seat)[0];
+        if(nextHost)entry.room.hostClientId=nextHost.clientId;
+      }
       entry.room=Core.applyLobbyAction(entry.room,{type:'LEAVE',clientId:s.clientId});
       if(entry.room.phase==='closed')this._closeRoom(entry.room.code);
-      else this._broadcast(entry);
+      else {entry.revision++;this._broadcast(entry);}
     }else if(entry.room.phase==='game'){
+      const previous=Core.seatForClient(entry.room,s.clientId);
+      const previousName=previous.name;
       const r=Core.replaceClientWithAI(entry.room,s.clientId);entry.room=r.room;
-      delete entry.room.seats[r.seat].reconnectUntil;
-      entry.game.players[r.seat].name=r.name;
+      const takeover=entry.room.seats[r.seat];
+      delete takeover.reconnectUntil;
+      // Preserve the human's historical identity through the current match.
+      // Crucially, even a 'finished' BONDI player could return on a later
+      // Bondi collection, so an AI must still be able to play this seat.
+      takeover.name=previousName;
+      takeover.aiTakeover=true;
+      entry.game.players[r.seat].name=previousName;
+      entry.game.log.push(`${previousName} (Seat ${r.seat+1}) left — AI controls their Aiybai until this match ends.`);
       // When a host leaves mid-game, promote the next human so an ended
       // match still has someone who can request a rematch.
       if(entry.room.hostClientId===s.clientId){
