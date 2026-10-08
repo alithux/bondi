@@ -1,29 +1,34 @@
-# BONDI Stage 5.0.3 — Multiplayer Foundation · Hard AI Stage 4.2
+# BONDI Stage 5.1 — Online Multiplayer Foundation
 
-Stage 5.0.3 keeps the Stage 5.0.2 same-browser multiplayer and iPhone active-tab synchronization, and upgrades Hard AI to **Stage 4.2 — Persistent Conveyor Breaker**.
+**Playable website:** https://alithux.github.io/bondi/
 
-## Stage 4.2 AI change
-- Detects when the same opponent has Bondied into the AI at least twice in a continuing recipient/giver conveyor.
-- If that opponent is confirmed void in the repeated lead suit and no opponent has a one-card emergency, Hard AI rejects materially worse repeated-feed leads when another suit reduces conveyor exposure.
-- This closes the multiplayer pattern where AI 2 repeatedly led 9♥ while Ali repeatedly Bondied and shed card after card.
-- A genuine one-card terminal threat still outranks the conveyor breaker, preserving Stage 4.1 terminal lookahead.
-- Stage 4.1 multi-threat terminal logic, heads-up logic, the highest-card Bondi rule, and the confirmed BONDI rules remain intact.
+**Current game:** BONDI Stage 5.1 UI, confirmed Stage 4.2 Hard AI and rules, Stage 5.0.3 same-browser multiplayer preserved.
 
-## Multiplayer
-Stage 5.0.2 behavior is retained: durable iPhone room mailbox, shared same-browser game snapshot, active-player move application while the original host tab is suspended, AI continuation, and revision-based recovery.
+Stage 5.1 adds a *separate* server-authoritative WebSocket game mode. Once a server is deployed, people on different phones can create and join the same four-seat room, play BONDI together, and fill unused seats with Hard AI. The server alone holds full Aiybai and validates each move. The static GitHub Pages website continues to work without an online server for Solo vs AI and Same-browser tabs.
 
-## Validation
-- Rules/AI regression suite: **64/64 passed**.
-- 500/500 complete four-player Hard-AI games.
-- 1,000/1,000 targeted terminal-lookahead cases.
-- 500/500 established conveyor cases.
-- 500/500 new persistent-conveyor conflict cases.
-- 0 illegal AI moves and 0 stalled AI games.
+### Features added
+
+- Select **Same-browser tabs** or **Online — different phones** on the multiplayer screen.
+- Enter an online server HTTPS address; the browser connects over WSS.
+- Create/join rooms, Ready, host/dealer controls, AI-filled seats, turn-by-turn real-time synchronization.
+- Server-private Aiybai, validated turns/Bondi/finish order, game-over results.
+- Reconnect after an interrupted connection, and **Reconnect previous online room** after refreshing the same tab.
+- Multiplayer logs now use the real players' names for finished seats.
+- The existing Stage 5.0.3 local-browser transport and Solo vs AI are unchanged.
+
+### How to deploy
+
+See **[ONLINE-DEPLOY.md](ONLINE-DEPLOY.md)**. The online server is **not yet hosted**, so this milestone cannot claim that two arbitrary phones can already connect through the public GitHub Pages site. A Render or other Node server connection is the remaining deployment step.
+
+### Verified tests
+
+- Rules and AI: **64/64 passed**.
 - Multiplayer core: **13/13 passed**.
-- Standard browser multiplayer flow: **PASS**.
-- iPhone suspended-host join regression: **PASS**.
-- iPhone suspended-host guest play regression: **PASS**.
-- Mixed multiplayer simulation: **160/160 games**, **13,124 synchronized plays**, **0 illegal moves**, **0 stalls**.
+- Online service: create/join, host permissions, private views, illegal/forged action rejection, resume, actual WebSocket handshake: **passed**.
+- Online service: **20/20 full games** with three Hard AIs, **0 illegal plays, 0 stalls**.
+- Browser-side WebSocket client against live local server: create/join, private hands, legal card play synchronized, network reconnect, refresh-token reclaim: **passed**.
+- Existing iPhone same-browser flow: earlier Stage 5.0.3 code is preserved; original tests also remain in the downloadable source.
 
-## Prototype security note
-Same-browser multiplayer stores the authoritative prototype game snapshot in browser storage so another active tab can continue when iOS suspends the host. The UI hides opponents’ Aiybai, but browser storage is not a security boundary. Real internet multiplayer will move authority and hidden Aiybai to a server.
+### Known tradeoffs
+
+The live game server uses memory storage and needs a host that accepts WebSocket upgrades. A restart ends its active rooms. No npm dependency is required. No public server domain is configured until one is deployed.

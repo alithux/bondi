@@ -1,0 +1,205 @@
+'use strict';
+const crypto = require('node:crypto');
+const Core = require('../multiplayer-core.js');
+const Engine = require('./load-engine.js');
+const CODE_ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const SESSION_GRACE_MS=60000;
+const IDLE_ROOM_MS=20*60*1000;
+
+function cleanCode(value) { return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6); }
+function randomCode() { return Array.from({length:6},()=>CODE_ALPHABET[crypto.randomInt(CODE_ALPHABET.length)]).join(''); }
+function secureRandom() {return crypto.randomInt(0x100000000)/0x100000000;}
+function clone(v){return JSON.parse(JSON.stringify(v));}
+function visibleRoom(room) {return clone(room);}
+function translateFinishLogs(log,room) {
+  return log.map(x=>x.replace(/\bPlayer ([1-4]) has finished\./g,(_,n)=>`${room.seats[Number(n)-1].name} has finished.`));
+}
+class RoomService {
+  constructor({aiDelay=650,resolutionDelay=1800,graceMs=SESSION_GRACE_MS, maxRooms=100,logger=()=>{}}={}) {
+    this.rooms=new Map();this.sessions=new Map();this.aiDelay=aiDelay;this.resolutionDelay=resolutionDelay;this.graceMs=graceMs;this.maxRooms=maxRooms;this.logger=logger;
+  }
+  attach(peer) {
+    peer._bondiv2={token:null,count:0,windowAt:Date.now()};
+    peer.on('message', raw=>{
+      if(typeof raw!=='string'||raw.length>32768)return peer.close(1009);
+      let msg;
+      try{msg=JSON.parse(raw);}catch(_){this._error(peer,'Invalid JSON.');return;}
+      if(!msg||typeof msg!=='object'||Array.isArray(msg)){this._error(peer,'Invalid message.');return;}
+      const conn=peer._bondiv2,now=Date.now();
+      if(now-conn.windowAt>10000){conn.count=0;conn.windowAt=now;}
+      if(++conn.count>100){this._error(peer,'Too many actions.');peer.close(1008);return;}
+      try{this._message(peer,msg);}catch(err){this._error(peer,err.message||'Room error.');}
+    });
+    peer.on('close',()=>this._disconnect(peer));
+    peer.sendJSON({type:'CONNECTED',protocol:1});
+  }
+  _error(peer,message){peer.sendJSON({type:'ERROR',message:String(message).slice(0,160)});}
+  _freshSession(peer,entry,clientId,name) {
+    const token=crypto.randomBytes(32).toString('hex');
+    const session={token,clientId,roomCode:entry.room.code,name,peer,lastSeen:Date.now(),disconnectTimer:null};
+    this.sessions.set(token,session);peer._bondiv2.token=token;
+    peer.sendJSON({type:'WELCOME',code:entry.room.code,clientId,token});
+    return session;
+  }
+  _mustSession(peer) {
+    const s=this.sessions.get(peer._bondiv2.token);
+    if(!s||s.peer!==peer)throw Error('Reconnect or join a room first.');
+    const entry=this.rooms.get(s.roomCode);
+    if(!entry||!Core.seatForClient(entry.room,s.clientId))throw Error('Room is no longer available.');
+    return {s,entry};
+  }
+  _roomEntry(room){return {room,game:null,aiTimer:null,resolutionTimer:null,resolutionPause:false,pauseUntil:0,updatedAt:Date.now(),revision:0};}
+  _create(peer,msg){
+    if(peer._bondiv2.token)throw Error('Leave the current room first.');
+    if(this.rooms.size>=this.maxRooms)throw Error('Server is full. Try again later.');
+    let code;do{code=randomCode();}while(this.rooms.has(code));
+    const clientId=crypto.randomUUID(),name=Core.cleanName(msg.name);
+    const entry=this._roomEntry(Core.createRoom({code,hostClientId:clientId,hostName:name}));
+    this.rooms.set(code,entry);this._freshSession(peer,entry,clientId,name);this._broadcast(entry);
+  }
+  _join(peer,msg){
+    if(peer._bondiv2.token)throw Error('Leave the current room first.');
+    const code=cleanCode(msg.code),entry=this.rooms.get(code);
+    if(!entry||entry.room.phase!=='lobby')throw Error('Room not found or game already started.');
+    const clientId=crypto.randomUUID(),name=Core.cleanName(msg.name);
+    entry.room=Core.applyLobbyAction(entry.room,{type:'JOIN',clientId,name});
+    this._freshSession(peer,entry,clientId,name);this._broadcast(entry);
+  }
+  _resume(peer,msg) {
+    if(peer._bondiv2.token)throw Error('Already connected to a room.');
+    const token=String(msg.token||''),session=this.sessions.get(token);
+    if(!/^[a-f0-9]{64}$/.test(token)||!session||session.roomCode!==cleanCode(msg.code))throw Error('Session expired. Please join again.');
+    const entry=this.rooms.get(session.roomCode);
+    if(!entry||!Core.seatForClient(entry.room,session.clientId))throw Error('Your seat is no longer available.');
+    if(session.disconnectTimer){clearTimeout(session.disconnectTimer);session.disconnectTimer=null;}
+    if(session.peer&&session.peer!==peer){session.peer._bondiv2.token=null;session.peer.close(1000);}
+    session.peer=peer;peer._bondiv2.token=token;session.lastSeen=Date.now();
+    if(entry.room.phase==='lobby')entry.room=Core.applyLobbyAction(entry.room,{type:'RECONNECT',clientId:session.clientId});
+    else {const seat=Core.seatForClient(entry.room,session.clientId);if(seat)seat.connected=true;}
+    peer.sendJSON({type:'WELCOME',code:entry.room.code,clientId:session.clientId,token});
+    this._broadcast(entry);
+  }
+  _message(peer,msg) {
+    if(msg.type==='CREATE')return this._create(peer,msg);
+    if(msg.type==='JOIN')return this._join(peer,msg);
+    if(msg.type==='RESUME')return this._resume(peer,msg);
+    if(msg.type!=='ACTION')throw Error('Unknown message type.');
+    const {s,entry}=this._mustSession(peer);const action=String(msg.action||'');
+    entry.updatedAt=Date.now();
+    if(action==='LEAVE'){
+      this._leave(s,entry);peer._bondiv2.token=null;
+      peer.sendJSON({type:'LEFT'});return;
+    }
+    if(entry.room.phase==='lobby'){
+      const t={READY:'SET_READY',DEALER:'SET_DEALER',ADD_AI:'ADD_AI',REMOVE_AI:'REMOVE_AI',NAME:'SET_NAME'}[action];
+      if(action==='START'){
+        if(s.clientId!==entry.room.hostClientId)throw Error('Only the host can start.');
+        const started=Core.startGame(entry.room,Engine,secureRandom);
+        entry.room=started.room;entry.game=started.game;entry.revision++;
+        this._broadcast(entry);this._schedule(entry);return;
+      }
+      if(!t)throw Error('That action is not allowed in the lobby.');
+      entry.room=Core.applyLobbyAction(entry.room,{type:t,clientId:s.clientId,ready:!!msg.ready,seat:msg.seat,name:msg.name});
+      this._broadcast(entry);return;
+    }
+    if(entry.room.phase!=='game'||action!=='PLAY')throw Error('That action is not allowed during the game.');
+    if(entry.resolutionPause)throw Error('Wait for the Aiy to resolve.');
+    const cardId=String(msg.cardId||'');
+    const before=entry.game;
+    const r=Core.applyHumanPlay(entry.room,before,s.clientId,cardId,Engine);
+    if(!r.ok)throw Error(r.error);
+    entry.game=r.state;this._afterPlay(entry,before);
+  }
+  _afterPlay(entry,before){
+    entry.revision++;
+    const oldRes=before.lastResolution&&JSON.stringify(before.lastResolution);
+    const newRes=entry.game.lastResolution&&JSON.stringify(entry.game.lastResolution);
+    const resolved=!!newRes&&oldRes!==newRes;
+    if(resolved&&!entry.game.roundOver){
+      entry.resolutionPause=true;entry.pauseUntil=Date.now()+this.resolutionDelay;
+      this._broadcast(entry);
+      clearTimeout(entry.resolutionTimer);
+      entry.resolutionTimer=setTimeout(()=>{
+        if(!this.rooms.has(entry.room.code))return;
+        entry.resolutionPause=false;entry.pauseUntil=0;entry.revision++;
+        this._broadcast(entry);this._schedule(entry);
+      },this.resolutionDelay);
+    }else{this._broadcast(entry);this._schedule(entry);}
+  }
+  _schedule(entry){
+    clearTimeout(entry.aiTimer);
+    if(!entry.game||entry.game.roundOver||entry.resolutionPause)return;
+    const i=entry.game.currentPlayer;
+    if(!Core.isAISeat(entry.room,i))return;
+    entry.aiTimer=setTimeout(()=>{
+      if(!this.rooms.has(entry.room.code)||entry.game.roundOver||entry.resolutionPause||!Core.isAISeat(entry.room,entry.game.currentPlayer))return;
+      const seat=entry.game.currentPlayer;
+      const card=Engine.chooseAICard(entry.game,seat,'hard');
+      if(!card){this.logger('AI had no move',entry.room.code);return;}
+      const before=entry.game,r=Engine.playCard(before,seat,card.id);
+      if(!r.ok){this.logger('Illegal AI move',entry.room.code,r.error);return;}
+      entry.game=r.state;this._afterPlay(entry,before);
+    },this.aiDelay);
+  }
+  _broadcast(entry){
+    const room=visibleRoom(entry.room);
+    for(const s of this.sessions.values()){
+      if(s.roomCode!==entry.room.code||!s.peer||s.peer.closed)continue;
+      const seat=Core.seatForClient(entry.room,s.clientId);
+      if(!seat)continue;
+      const view=entry.game?Core.projectGame(entry.room,entry.game,s.clientId,entry.resolutionPause):null;
+      if(view)view.log=translateFinishLogs(view.log,entry.room);
+      s.peer.sendJSON({type:'SNAPSHOT',room,view,clientId:s.clientId,seat:seat.seat,isHost:s.clientId===room.hostClientId,revision:entry.revision});
+    }
+  }
+  _leave(s,entry){
+    if(entry.room.phase==='lobby'){
+      entry.room=Core.applyLobbyAction(entry.room,{type:'LEAVE',clientId:s.clientId});
+      if(entry.room.phase==='closed')this._closeRoom(entry.room.code);
+      else this._broadcast(entry);
+    }else if(entry.room.phase==='game'){
+      const r=Core.replaceClientWithAI(entry.room,s.clientId);entry.room=r.room;
+      entry.game.players[r.seat].name=r.name;
+      entry.revision++;this._broadcast(entry);this._schedule(entry);
+    }
+    if(s.disconnectTimer)clearTimeout(s.disconnectTimer);
+    this.sessions.delete(s.token);
+  }
+  _disconnect(peer) {
+    const token=peer._bondiv2?.token;
+    if(!token)return;
+    const s=this.sessions.get(token);
+    if(!s||s.peer!==peer)return;
+    s.peer=null;s.lastSeen=Date.now();
+    const entry=this.rooms.get(s.roomCode);
+    if(!entry)return;
+    if(entry.room.phase==='lobby')entry.room=Core.applyLobbyAction(entry.room,{type:'DISCONNECT',clientId:s.clientId});
+    else {const seat=Core.seatForClient(entry.room,s.clientId);if(seat)seat.connected=false;}
+    this._broadcast(entry);
+    s.disconnectTimer=setTimeout(()=>{
+      const latest=this.rooms.get(s.roomCode);
+      if(!latest||s.peer)return;
+      this._leave(s,latest);
+    },this.graceMs);
+  }
+  _closeRoom(code){
+    const entry=this.rooms.get(code);
+    if(!entry)return;
+    clearTimeout(entry.aiTimer);clearTimeout(entry.resolutionTimer);
+    this.rooms.delete(code);
+    for(const s of [...this.sessions.values()]){
+      if(s.roomCode!==code)continue;
+      if(s.peer&&!s.peer.closed){s.peer.sendJSON({type:'ROOM_CLOSED'});s.peer._bondiv2.token=null;}
+      if(s.disconnectTimer)clearTimeout(s.disconnectTimer);
+      this.sessions.delete(s.token);
+    }
+  }
+  cleanIdleRooms(now=Date.now()){
+    for(const [code,entry] of this.rooms){
+      const connected=[...this.sessions.values()].some(s=>s.roomCode===code&&s.peer&&!s.peer.closed);
+      if(!connected&&now-entry.updatedAt>IDLE_ROOM_MS)this._closeRoom(code);
+    }
+  }
+  shutdown(){for(const code of [...this.rooms.keys()])this._closeRoom(code);}
+}
+module.exports={RoomService,cleanCode,translateFinishLogs};

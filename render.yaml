@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: bondi-online
+    runtime: node
+    buildCommand: echo "No install needed - BONDI uses Node.js built-in modules"
+    startCommand: node online-server/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: BONDI_ALLOWED_ORIGINS
+        value: https://alithux.github.io
+      - key: NODE_VERSION
+        value: "22"

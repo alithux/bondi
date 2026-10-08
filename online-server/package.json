@@ -1,0 +1,8 @@
+{
+  "name": "bondi-online-server",
+  "private": true,
+  "version": "5.1.0",
+  "description": "Server-authoritative multiplayer for the Maldivian BONDI card game",
+  "scripts": {"start":"node server.js", "test":"node room-service.test.js"},
+  "engines": {"node":">=22"}
+}
