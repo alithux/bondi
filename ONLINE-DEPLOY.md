@@ -1,13 +1,13 @@
-# BONDI Stage 5.4 — Online multiplayer server and rematch reliability
+# BONDI Stage 5.5 — Online multiplayer server and rematch reliability
 
-The GitHub Pages website is static and cannot itself host online multiplayer. The new server is a standalone Node.js WebSocket service using the exact same BONDI Stage 4.2 engine chunks as the website. No database, API keys, or npm packages are required for this initial live-room milestone.
+The GitHub Pages website is static and cannot itself host online multiplayer. The new server is a standalone Node.js WebSocket service using the exact same BONDI Stage 4.3 engine chunks as the website. No database, API keys, or npm packages are required for this initial live-room milestone.
 
 ## Live server
 
 - Render service: https://bondi-online.onrender.com/health (free plan, Singapore)
 - Public website: https://alithux.github.io/bondi/
 - Online rooms can play multiple complete games without creating a new room: host taps Play Again, everyone marks Ready, host starts next game.
-- Stage 5.4 preserves original human names through AI takeover until the match ends; on the next rematch, abandoned seats receive unique AI names.
+- Stage 5.5 preserves original human names through AI takeover until the match ends; on the next rematch, abandoned seats receive unique AI names.
 - In a lobby, another connected human becomes host if the host leaves or times out, instead of closing the room.
 - As with earlier releases, the in-memory server and its rooms restart on deployment, server sleep, or outages; Render free may take about a minute to wake.
 

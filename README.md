@@ -1,31 +1,23 @@
-# BONDI Stage 5.4 — Player Identity & Rematch Reliability
+# BONDI Stage 5.5 — Hard AI 4.3: Adaptive Bondi Defense
 
-**Game:** https://alithux.github.io/bondi/  
-**Online server:** https://bondi-online.onrender.com/health  
-**Engine:** BONDI rules + Hard AI Stage 4.2 (unchanged)
+**Play BONDI:** https://alithux.github.io/bondi/  
+**Online server:** https://bondi-online.onrender.com/health
 
-BONDI is a Maldivian multiplayer card game. **Aiy** (އަތް) means the played sequence, and **Aiybai** means a player's held cards. Four-player online rooms support players on different phones, AI-filled seats, real-time server-authoritative play, and **Play Again** in the same room. Solo vs AI and same-browser multiplayer remain available.
+## New in Stage 5.5
 
-## What's new in Stage 5.4
+The BONDI 52-card rules, Aiy, Aiybai, Bondi outcomes, same-room Play Again, online two-phone multiplayer, and player identity features remain unchanged.
 
-- **Original player identity persists for an entire match.** If Ayya finishes and later disconnects, AI may control that seat but historic log entries and player labels still say **Ayya (Seat 2)** instead of changing retroactively to “AI 3”.
-- During the match, such a seat is visibly labeled **AI takeover**. On **Play Again**, an abandoned seat receives a unique `AI N` identity for the new match; the previous match's history is no longer displayed.
-- **Bondi re-entry is supported.** Even a player who previously finished can collect a Bondi and return to active play. If they already left, AI can continue that seat after re-entry; their identity still remains the original name for that match.
-- **Lobby host failover.** If a host leaves or expires during a lobby/rematch lobby, another human becomes host so the room code, Ready flow and next match remain available. A lobby with no remaining human participants still closes.
-- Game rules, Stage 4.2 Hard AI, card legality, same-browser and Solo modes are **unchanged**.
+Hard AI Stage 4.3 adds a conservative defense against **avoidable repeated Bondi pickups**. When an opponent has three or fewer cards and has already shed a Bondi into the AI's Aiybai, the AI checks publicly returned cards for a suit the opponent can definitely follow. It switches from a confirmed-void lead to that safer suit only if doing so will not expose another equally-or-more urgent opponent to a confirmed Bondi. It still permits forced Bondis, and it preserves early-Bondi containment of one-card players.
 
-## How to use
+This only uses the AI's own cards, publicly observed cards, and opponent card counts. **It does not inspect hidden Aiybai**. Easy and Medium AI and all gameplay rules are unchanged.
 
-1. Open the site on both phones; select **Multiplayer → Online — different phones**.
-2. Create a room on one phone, and join on the other using its code and different player names.
-3. Fill unused seats with AI, mark Ready, and start BONDI.
-4. After a game ends, the online host taps **Play Again — same room**. All remaining human players mark Ready before a new 52-card deal.
-5. If someone leaves, the match continues with AI control of that seat. A connection lost unexpectedly has a **60-second** reconnect window before AI takes over. The next match gives any vacated seat a new AI name; the host may remove that AI in the rematch lobby to make space for a returning person.
+## Testing and caveats
 
-## Validation
+The downloadable Stage 5.5 source package includes the complete deterministic regression fixtures and tests (`stage55.test.js`, `stage55-regression-fixtures.json`, `game-engine.test.js`) and the validation harness. The readable `game-engine-source.js` is also checked into this repository alongside the ten browser engine chunks.
 
-See [STAGE54-TEST-RESULTS.md](STAGE54-TEST-RESULTS.md) and the included test scripts. Tests cover completed online matches, private Aiybai, room rematches, disconnects, AI takeover of a previously finished human, actual Bondi re-entry, host transfer in the lobby, and the mobile-oriented UI.
+- 64/64 existing rule/AI tests passed; all five new regression cases passed.
+- 13/13 multiplayer-core tests, 20/20 online test games, and 160/160 mixed multiplayer simulations passed.
+- The AI harness finished 400/400 seeded games with no illegal moves or stalls, plus 120/120 in each targeted stress category.
+- **Aggregate conveyor statistics are mixed**, so these results show a reproducible decision correction, not proof of stronger overall play. See `STAGE55-TEST-RESULTS.md`.
 
-**Limits:** This is a one-process, in-memory WebSocket server hosted on Render's free plan. Rooms are lost when the instance sleeps or restarts; waking can take time. There are no permanent player accounts, public matchmaking, or room persistence. The 60-second grace window is controlled by the server, not a phone.
-
-Deployment details: [ONLINE-DEPLOY.md](ONLINE-DEPLOY.md). Same-browser local mode does not yet have same-room Play Again; only Online mode does.
+The Render free-tier server sleeps when idle; server restarts erase live in-memory rooms.
