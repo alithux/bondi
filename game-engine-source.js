@@ -1310,6 +1310,42 @@
             model.definitelyVoid(other,entry.card.suit)));
         if(safeFollows.length) choice=safeFollows[0].card;
       }
+      // Stage 4.5: receiving Bondi makes us lead a fresh Aiy. Winning that
+      // Aiy again with an unnecessarily high lead may keep us in control and
+      // expose the same Aiybai to another pickup. Prefer a lower lead when
+      // public information says its Bondi risk is comparable.
+      //
+      // This is NOT the Bondi discard rule: an AI which cannot follow suit
+      // still gives the highest card of the suit it chooses to discard.
+      // Skip the rank adjustment with a one-card opponent, because the
+      // Stage 4.1 terminal containment must take precedence.
+      if (oneCardThreats===0 && state.lastResolution &&
+          state.lastResolution.type==='bondi' &&
+          state.lastResolution.recipientIndex===playerIndex && moves.length>1) {
+        const postBondiRisk=card=>strategicLeadScore(state,playerIndex,card,model,null);
+        const originalRisk=postBondiRisk(choice);
+        const immediateOpponent=model.order[0];
+        const exposedNearFinish=card=>model.opponents.filter(x=>
+          x.p.hand.length<=3 && model.definitelyVoid(x,card.suit)).length;
+        const originalDanger=exposedNearFinish(choice);
+        const originalImmediateVoid=immediateOpponent &&
+          model.definitelyVoid(immediateOpponent,choice.suit);
+        // Restrict preference to modest risk differences. In particular a
+        // low card is NOT a better move if it creates a newly confirmed Bondi
+        // for the next player or a near-finisher.
+        const safeLower=moves.filter(card=>
+          card.value<choice.value &&
+          postBondiRisk(card)<=originalRisk+900 &&
+          exposedNearFinish(card)<=originalDanger &&
+          (!immediateOpponent || originalImmediateVoid ||
+            !model.definitelyVoid(immediateOpponent,card.suit))
+        );
+        const leadUtility=card=>postBondiRisk(card)+card.value*100;
+        safeLower.sort((a,b)=>leadUtility(a)-leadUtility(b) ||
+          a.value-b.value || SUITS.indexOf(a.suit)-SUITS.indexOf(b.suit));
+        if (safeLower.length && leadUtility(safeLower[0])<leadUtility(choice))
+          choice=safeLower[0];
+      }
       return choice;
     }
 
