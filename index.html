@@ -39,12 +39,12 @@
 .lobby-guidance{padding:12px;border-radius:11px;background:#174b39;border:1px solid #548974;margin:12px 0;font-size:.91rem;line-height:1.5}
 .lobby-primary-actions{display:grid;gap:9px;margin-top:13px}.lobby-primary-actions button{width:100%;min-height:50px}
 .lobby-primary-actions button.secondary{background:#20553f}
-.host-settings{padding:4px 12px 10px;border-radius:11px;border:1px solid var(--line);margin-top:9px}
+.host-settings{padding:4px 12px 10px;border-radius:11px;border:1px solid var(--line);margin-top:9px}.lobby-extra{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}.lobby-extra summary{cursor:pointer;color:var(--muted);font-size:.83rem}.lobby-extra p{margin:8px 0}
 #fillAI{width:100%;margin-top:7px}
 #shareStatus{min-height:0;margin:6px 0 0}.lobby-seat{min-height:87px}
 @media(min-width:700px){.setup-choice{max-width:600px}.entry-panel{max-width:600px}.room-share{max-width:440px}.lobby-primary-actions{max-width:600px}}
 </style></head>
-<body><header><h1>BONDI</h1><p>Stage 5.6.1 · Easier multiplayer lobby · Hard AI Stage 4.4</p></header>
+<body><header><h1>BONDI</h1><p>Play cards with friends</p></header>
 <main>
 <section class="panel" id="homePanel"><strong>Choose how to play</strong><p class="note">The confirmed BONDI rules and Stage 4.4 Hard AI are unchanged.</p><div class="mode-grid"><button class="mode-card primary" id="soloMode"><strong>Solo vs AI</strong><small>Play the current BONDI game against Easy, Medium, or Hard computer opponents.</small></button><button class="mode-card secondary" id="multiMode"><strong>Multiplayer</strong><small>Play in local-browser rooms, or connect to an online BONDI server for different devices.</small></button></div></section>
 
@@ -52,13 +52,13 @@
 
 <section class="panel hidden" id="multiSetup">
   <div class="row space"><strong>Play with friends</strong><button id="multiBack">Back</button></div>
-  <p class="setup-intro">Play BONDI together on different phones. One person creates a room and shares its code; everyone else joins.</p>
-  <label class="field" for="playerName">1 · Your player name<input id="playerName" maxlength="24" autocomplete="nickname" placeholder="Enter your name"></label>
+  <p class="setup-intro">New? Create a room, send the code to friends, then tap Ready. Got a code? Choose Join.</p>
+  <label class="field" for="playerName">Your name<input id="playerName" maxlength="24" autocomplete="nickname" placeholder="Enter your name"></label>
   <div class="setup-choice" role="group" aria-label="Choose how to enter a room">
-    <button type="button" class="setup-tab" id="chooseCreate" aria-pressed="true"><strong>Create a room</strong><small>Start a new game and invite friends</small></button>
-    <button type="button" class="setup-tab" id="chooseJoin" aria-pressed="false"><strong>Join a room</strong><small>Enter a code from your friend</small></button>
+    <button type="button" class="setup-tab" id="chooseCreate" aria-pressed="true"><strong>Create</strong><small>Get a code to invite friends</small></button>
+    <button type="button" class="setup-tab" id="chooseJoin" aria-pressed="false"><strong>Join</strong><small>Use a friend's room code</small></button>
   </div>
-  <div class="entry-panel" id="createChoicePanel"><p class="note">You'll get a 6-character room code to share. You can fill empty seats with AI.</p><button class="primary" id="createRoom">Create my room</button></div>
+  <div class="entry-panel" id="createChoicePanel"><p class="note">Invite friends or fill empty seats with AI.</p><button class="primary" id="createRoom">Create my room</button></div>
   <div class="entry-panel hidden" id="joinChoicePanel"><label class="field" for="joinCode">2 · Enter the room code<input id="joinCode" maxlength="6" placeholder="ABC123" style="text-transform:uppercase" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><button class="primary" id="joinRoom">Join this room</button></div>
   <button id="resumeRoom" class="secondary hidden" style="margin-top:12px;width:100%">Reconnect to my previous room</button>
   <details class="setup-advanced" id="connectionOptions"><summary>Connection options (optional)</summary>
@@ -70,19 +70,18 @@
 </section>
 
 <section class="panel hidden" id="lobbyPanel">
-  <div class="lobby-banner"><div><div class="step-kicker">Step 1 · Invite friends</div><h2>Room <span class="room-code" id="roomCode">------</span></h2><p class="note" style="margin:4px 0">Friends use this code to join your room.</p></div><button id="leaveRoom" class="danger">Leave</button></div>
+  <div class="lobby-banner"><div><div class="step-kicker">Your game room</div><h2>Room <span class="room-code" id="roomCode">------</span></h2><p class="note" style="margin:4px 0">Send this code to your friends.</p></div><button id="leaveRoom" class="danger">Leave</button></div>
   <div class="room-share"><button id="copyRoomCode" class="secondary">Copy room code</button><button id="shareRoom" class="secondary">Share invite link</button></div>
   <p class="note" id="shareStatus" role="status" aria-live="polite"></p>
   <div class="presence" id="lobbyPresence" aria-live="polite"></div><button id="retryLobby" class="secondary hidden">Reconnect now</button>
-  <div class="lobby-step-header"><strong>Step 2 · Players</strong><span class="lobby-count" id="lobbyCount">0 of 4 seats filled</span></div>
+  <div class="lobby-step-header"><strong>Players at the table</strong><span class="lobby-count" id="lobbyCount">0 of 4 seats filled</span></div>
   <div class="lobby-seats" id="lobbySeats"></div>
-  <p class="note" id="lobbyRole"></p>
   <div class="lobby-guidance" id="lobbyProgress" role="status" aria-live="polite">Waiting for players…</div>
-  <div id="hostControls" class="hidden"><button class="secondary" id="fillAI">Fill empty seats with AI</button>
+  <div class="lobby-primary-actions"><button class="primary" id="readyButton">I'm ready</button><button class="primary hidden" id="startRoom">Start BONDI</button></div>
+  <div id="hostControls" class="hidden"><button class="secondary" id="fillAI">Add AI to empty seats</button>
     <details class="host-settings"><summary>Host settings (optional)</summary><label class="field" for="mpDealer">Dealer<select id="mpDealer"></select></label><p class="note">The host chooses the dealer. All players must tap Ready before the match starts.</p></details>
   </div>
-  <div class="lobby-primary-actions"><button class="primary" id="readyButton">I'm ready to play</button><button class="primary hidden" id="startRoom">Start BONDI</button></div>
-  <p class="note" id="lobbyHint"></p>
+  <details class="lobby-extra"><summary>Room details</summary><p class="note" id="lobbyRole"></p><p class="note" id="lobbyHint"></p></details>
 </section>
 
 <section class="panel hidden" id="multiplayerBar"><div class="row space"><div><strong>Multiplayer game</strong><div class="note">Room <span id="gameRoomCode"></span> · <span id="gameRole"></span></div><div class="note" id="mpErrorStatus" role="status"></div><div class="presence" id="gamePresence" aria-live="off"></div><button id="retryGame" class="secondary hidden">Reconnect now</button></div><button id="leaveGame" class="danger">Leave room</button></div></section>
