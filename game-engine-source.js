@@ -1293,6 +1293,23 @@
           break;
         }
       }
+      // Stage 4.4: avoid a *certain*, immediately repeated self-pickup when the
+      // very next active seat is publicly known to be void in our chosen suit.
+      // A suit with a card *publicly known* to remain in that seat's Aiybai is a
+      // verified way to make them follow instead. This guard applies throughout
+      // the match, rather than waiting for that opponent to have <= 3 cards.
+      //
+      // Do not sacrifice the earlier Stage 4.1 one-card cutoff, or transfer the
+      // same guaranteed Bondi risk onto somebody at least as close to finishing.
+      const immediate=model.order[0];
+      if (oneCardThreats===0 && immediate && model.definitelyVoid(immediate,choice.suit)) {
+        const safeFollows=allLeads.filter(entry=>
+          model.definitelyHas(immediate,entry.card.suit) &&
+          !model.opponents.some(other=>other.i!==immediate.i &&
+            other.p.hand.length<=immediate.p.hand.length &&
+            model.definitelyVoid(other,entry.card.suit)));
+        if(safeFollows.length) choice=safeFollows[0].card;
+      }
       return choice;
     }
 
@@ -1329,7 +1346,37 @@
     return chooseLegacyAICard(state,playerIndex,difficulty,random);
   }
 
-    const api = { createDeck, shuffle, createGame, legalMoves, playCard, highestLeadCard, chooseAICard };
+  // Stage 4.4: concise, PUBLIC-ONLY reasoning for AI leads in exported online
+  // logs. Never mention any unrevealed opponent card or infer their actual hand
+  // from the private server-side game state; the model uses counts and publicly
+  // earned suit knowledge only. Called only for the AI's committed move.
+  function explainHardAILead(state, playerIndex, card) {
+    if(!card || state.trick.length || state.roundOver ||
+       state.currentPlayer!==playerIndex) return null;
+    const model=buildStrategicModel(state,playerIndex);
+    const immediate=model.order[0];
+    if(!immediate) return null;
+    const suit=card.suit;
+    const recent=model.conveyorCount(immediate.i);
+    if(model.definitelyVoid(immediate,suit)) {
+      const alternatives=legalMoves(state,playerIndex).some(c=>
+        model.definitelyHas(immediate,c.suit));
+      const oneCard=model.opponents.some(x=>x.p.hand.length===1);
+      const explanation=oneCard
+        ? 'known Bondi risk retained while a one-card opponent remains'
+        : alternatives
+          ? 'known Bondi risk retained to limit other threats'
+          : 'next seat is publicly void; no publicly confirmed follow-suit exit';
+      return {kind:'bondi-risk',suit,nextSeat:immediate.i+1,recentPickups:recent,explanation};
+    }
+    if(model.definitelyHas(immediate,suit) && legalMoves(state,playerIndex).some(c=>model.definitelyVoid(immediate,c.suit))) {
+      return {kind:'verified-follow',suit,nextSeat:immediate.i+1,recentPickups:recent,
+        explanation:'next seat has a publicly confirmed card of the lead suit'};
+    }
+    return null;
+  }
+
+    const api = { createDeck, shuffle, createGame, legalMoves, playCard, highestLeadCard, chooseAICard, explainHardAILead };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.BondiEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);

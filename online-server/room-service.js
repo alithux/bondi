@@ -168,8 +168,14 @@ class RoomService {
       const seat=entry.game.currentPlayer;
       const card=Engine.chooseAICard(entry.game,seat,'hard');
       if(!card){this.logger('AI had no move',entry.room.code);return;}
-      const before=entry.game,r=Engine.playCard(before,seat,card.id);
+      const before=entry.game;
+      const tactic=Engine.explainHardAILead(before,seat,card);
+      const r=Engine.playCard(before,seat,card.id);
       if(!r.ok){this.logger('Illegal AI move',entry.room.code,r.error);return;}
+      // Insert public-information-only reasoning immediately before the lead.
+      // The existing human/AI play, Bondi and finishing log lines are unchanged.
+      if(tactic) r.state.log.splice(before.log.length,0,
+        `AI lead insight · ${before.players[seat].name} (Seat ${seat+1}) · ${card.suit}: ${tactic.explanation} (Seat ${tactic.nextSeat}).`);
       entry.game=r.state;this._afterPlay(entry,before);
     },this.aiDelay);
   }
