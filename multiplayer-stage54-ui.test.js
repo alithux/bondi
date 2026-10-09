@@ -35,7 +35,7 @@ assert.match($('rematchHint').textContent,/Departed seats become AI/i);
 console.log('PASS game view identifies Ayya historically, clearly marks AI takeover and rematch substitution');
 (async()=>{
  await $('copyFullLog').handlers.click({target:$('copyFullLog')});
- assert.match(lastCopy,/Build: Stage 5.4/);
+ assert.match(lastCopy,/Build: Stage 5\.(?:4|5|6)/);
  assert.match(lastCopy,/Seat 2: Ayya \(AI takeover after leaving\)/);
  assert.match(lastCopy,/Ayya \(Seat 2\) has finished\./);
  assert.doesNotMatch(lastCopy,/AI 3 \(Seat 2\) has finished/);

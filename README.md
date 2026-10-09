@@ -1,23 +1,29 @@
-# BONDI Stage 5.5 — Hard AI 4.3: Adaptive Bondi Defense
+# BONDI Stage 5.6 — Hard AI 4.4: Adaptive Suit Memory
 
-**Play BONDI:** https://alithux.github.io/bondi/  
+**Play:** https://alithux.github.io/bondi/
 **Online server:** https://bondi-online.onrender.com/health
 
-## New in Stage 5.5
+Hard AI 4.4 reduces a specific class of avoidable Bondi: if the very next active seat is publicly confirmed void in the chosen lead suit, but publicly known to have a card in another legal suit, the AI switches to that known-follow lead. This can occur at any stage of the match, not only at three cards or fewer.
 
-The BONDI 52-card rules, Aiy, Aiybai, Bondi outcomes, same-room Play Again, online two-phone multiplayer, and player identity features remain unchanged.
+The AI uses visible Bondi history, confirmed suit shortages and publicly returned cards. It does not read opponents' hidden Aiybai. It preserves one-card emergency containment and does not switch into equally urgent confirmed suit-void danger elsewhere.
 
-Hard AI Stage 4.3 adds a conservative defense against **avoidable repeated Bondi pickups**. When an opponent has three or fewer cards and has already shed a Bondi into the AI's Aiybai, the AI checks publicly returned cards for a suit the opponent can definitely follow. It switches from a confirmed-void lead to that safer suit only if doing so will not expose another equally-or-more urgent opponent to a confirmed Bondi. It still permits forced Bondis, and it preserves early-Bondi containment of one-card players.
+**AI lead insight** appears in exported online logs when an AI lead involves confirmed suit knowledge. Solo full strategy logs contain a **SUIT MEMORY** note. The rules, Easy/Medium AI, 2-phone rooms, AI takeover, player names, reconnect and same-room Play Again are unchanged.
 
-This only uses the AI's own cards, publicly observed cards, and opponent card counts. **It does not inspect hidden Aiybai**. Easy and Medium AI and all gameplay rules are unchanged.
+## Validation
 
-## Testing and caveats
+- Engine regression: 64/64.
+- Multiplayer-core regression: 13/13.
+- Prior Stage 5.5 targeted AI tests: 5/5.
+- New Stage 5.6 targeted AI tests: 7/7.
+- Online full-match tests: 20 successful complete games.
+- Mixed multiplayer tests: 160/160 games complete.
+- Existing iPhone suspended-tab, reconnection, identity and rematch tests passed.
+- 400 same-seed Hard AI 4.3 vs 4.4 games each: zero stalls or illegal moves.
 
-The downloadable Stage 5.5 source package includes the complete deterministic regression fixtures and tests (`stage55.test.js`, `stage55-regression-fixtures.json`, `game-engine.test.js`) and the validation harness. The readable `game-engine-source.js` is also checked into this repository alongside the ten browser engine chunks.
+Average Bondis were 16.08 (4.3) versus 16.02 (4.4); matches with 3+ consecutive Bondi conveyor streaks were 211 versus 210. **These aggregate differences are too small to establish general superiority.** The concrete verified-follow correction is the tested improvement.
 
-- 64/64 existing rule/AI tests passed; all five new regression cases passed.
-- 13/13 multiplayer-core tests, 20/20 online test games, and 160/160 mixed multiplayer simulations passed.
-- The AI harness finished 400/400 seeded games with no illegal moves or stalls, plus 120/120 in each targeted stress category.
-- **Aggregate conveyor statistics are mixed**, so these results show a reproducible decision correction, not proof of stronger overall play. See `STAGE55-TEST-RESULTS.md`.
+See STAGE56-TEST-RESULTS.md. The complete source archive includes the A/B harness and tests.
 
-The Render free-tier server sleeps when idle; server restarts erase live in-memory rooms.
+## Deployment
+
+The website on GitHub Pages and the Node.js WebSocket service on Render reconstruct the same 10 engine chunks. The free Render service can sleep; new deployments end active in-memory rooms. Use a new room when testing a newly deployed version.
