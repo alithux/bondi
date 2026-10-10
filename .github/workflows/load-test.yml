@@ -1,0 +1,31 @@
+name: BONDI isolated multiplayer load test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'load-test/**'
+      - '.github/workflows/load-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-load-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run real-WebSocket staged scenarios in isolated local servers
+        run: node load-test/run.js --output=load-test-results.json
+      - name: Publish JSON metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bondi-load-test-results
+          path: load-test-results.json
+          if-no-files-found: ignore
+          retention-days: 14
