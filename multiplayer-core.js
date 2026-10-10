@@ -23,6 +23,7 @@
       hostClientId,
       dealerSeat: 3,
       aiDifficulty: 'hard',
+      matchHistory: [],
       seats,
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -126,10 +127,87 @@
     if (!engine || typeof engine.createGame !== 'function') throw new Error('BONDI engine is unavailable.');
     const game = engine.createGame({ playerCount: MAX_PLAYERS, dealer: room.dealerSeat, random });
     game.players.forEach((p, i) => { p.name = room.seats[i].name; });
+    game.matchStats = newMatchStats();
     const nextRoom = clone(room);
     nextRoom.phase = 'game';
     nextRoom.updatedAt = Date.now();
     return { room: nextRoom, game };
+  }
+
+  function newMatchStats() {
+    return {
+      bondiEvents: 0,
+      normalAiy: 0,
+      bondiGiven: Array(MAX_PLAYERS).fill(0),
+      bondiReceived: Array(MAX_PLAYERS).fill(0)
+    };
+  }
+
+  // Called once for each newly resolved Aiy, including the final Aiy.
+  // Counters live on the authoritative game state, not in browser storage
+  // or text logs, so reconnects and repeated renders cannot double-count.
+  function recordAiyResolution(before, after) {
+    const oldRes = before && before.lastResolution ? JSON.stringify(before.lastResolution) : '';
+    const newRes = after && after.lastResolution ? JSON.stringify(after.lastResolution) : '';
+    if (!newRes || oldRes === newRes) return false;
+    const stats = after.matchStats || clone(before && before.matchStats || newMatchStats());
+    after.matchStats = stats;
+    const resolution = after.lastResolution;
+    if (resolution.type === 'bondi') {
+      stats.bondiEvents++;
+      const giver = resolution.bondiPlayerIndex, recipient = resolution.recipientIndex;
+      if (Number.isInteger(giver) && giver >= 0 && giver < MAX_PLAYERS) stats.bondiGiven[giver]++;
+      if (Number.isInteger(recipient) && recipient >= 0 && recipient < MAX_PLAYERS) stats.bondiReceived[recipient]++;
+    } else if (resolution.type === 'normal') stats.normalAiy++;
+    return true;
+  }
+
+  // Uses only projected public fields (not unrevealed Aiybai contents).
+  // The final player with cards is always placed last, never declared winner.
+  function matchResults(room, game) {
+    if (!room || !game || !game.roundOver || !Array.isArray(game.players)) return null;
+    const stats = game.matchStats || newMatchStats();
+    const finished = (game.finishedOrder || []).filter((i, pos, all) =>
+      Number.isInteger(i) && i >= 0 && i < game.players.length && all.indexOf(i) === pos);
+    const remaining = game.players.map((p, i) => i)
+      .filter(i => !finished.includes(i))
+      .sort((a, b) => (game.players[a].handCount ?? game.players[a].hand.length)
+        - (game.players[b].handCount ?? game.players[b].hand.length) || a - b);
+    const order = finished.concat(remaining);
+    const players = order.map((i, index) => {
+      const player = game.players[i], seat = room.seats[i];
+      const handCount = player.handCount ?? player.hand.length;
+      return {
+        seat: i, rank: index + 1, name: seat ? seat.name : player.name,
+        isAI: !!(seat && seat.isAI), handCount,
+        lastHolding: handCount > 0,
+        bondiGiven: (stats.bondiGiven || [])[i] || 0,
+        bondiReceived: (stats.bondiReceived || [])[i] || 0
+      };
+    });
+    return {
+      matchNumber: Number(room.matchNumber) || 1,
+      difficulty: ['easy','medium','hard'].includes(room.aiDifficulty) ? room.aiDifficulty : 'hard',
+      bondiEvents: stats.bondiEvents || 0,
+      normalAiy: stats.normalAiy || 0,
+      players,
+      firstFinisherIsAI: !!(finished.length && room.seats[finished[0]] && room.seats[finished[0]].isAI)
+    };
+  }
+
+  function archiveMatch(room, game) {
+    const result = matchResults(room, game);
+    if (!result) return room;
+    const r = clone(room), history = Array.isArray(r.matchHistory) ? r.matchHistory : [];
+    if (!history.some(entry => entry.matchNumber === result.matchNumber)) {
+      history.push({
+        matchNumber: result.matchNumber, difficulty: result.difficulty,
+        bondiEvents: result.bondiEvents, normalAiy: result.normalAiy,
+        firstFinisherIsAI: result.firstFinisherIsAI
+      });
+    }
+    r.matchHistory = history.slice(-20);
+    return r;
   }
 
   function publicPlayer(p, own) {
@@ -153,6 +231,7 @@
       trick: clone(game.trick),
       pendingFinish: clone(game.pendingFinish || []),
       finishedOrder: clone(game.finishedOrder || []),
+      matchStats: clone(game.matchStats || newMatchStats()),
       roundOver: !!game.roundOver,
       lastResolution: clone(game.lastResolution),
       message: game.message,
@@ -212,6 +291,10 @@
     applyLobbyAction,
     canStart,
     startGame,
+    newMatchStats,
+    recordAiyResolution,
+    matchResults,
+    archiveMatch,
     projectGame,
     clientForSeat,
     isAISeat,
