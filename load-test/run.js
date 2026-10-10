@@ -42,7 +42,7 @@ class VirtualClient {
   });
   await timeout(()=>new Promise((resolve,reject)=>{
    this.ws.addEventListener('open',resolve,{once:true});
-   this.ws.addEventListener('error',()=>reject(Error('WebSocket connection error')),{once:true});
+   this.ws.addEventListener('error',evt=>reject(Error('WebSocket connection error: '+(evt.error?.message||evt.message||'unknown handshake failure'))),{once:true});
   }),12000,'Timed out opening a virtual player WebSocket');
   return this;
  }
@@ -194,7 +194,7 @@ async function stage(count,budgetMs){
   }
   await sample();
   const observed=await health(instance.port);
-  if(rooms.length!==count)console.error('Room setup diagnostics:',JSON.stringify(errors.slice(0,12)));
+  if(rooms.length!==count){console.error('Room setup diagnostics:',JSON.stringify(errors.slice(0,12)));console.error('Local server logs:',instance.lines.join('').slice(-2500));}
   assert.equal(rooms.length,count,`Only ${rooms.length}/${count} rooms started`);
   assert.equal(observed.rooms,count,'Unexpected isolated server room count');
   if(count===100){
