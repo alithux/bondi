@@ -49,3 +49,17 @@ The browser and server both load ten synchronized source chunks. The frontend UR
 The room host can choose **Easy**, **Medium**, or **Hard** AI in the multiplayer lobby before the match starts. Hard is the default for existing behavior. The selection is shared with guests, applies to **all AI seats** (including seats taken over after a player leaves), and remains set for a same-room rematch. Only the host can change the setting, and the server rejects invalid levels and in-game changes. Local-browser rooms follow the same rule. The exported multiplayer game log records the chosen level. BONDI rules and solo difficulty settings have not changed.
 
 Validation: `node multiplayer-ai-difficulty.test.js`, `node multiplayer-lobby-refresh.test.js`, `node online-server/room-service.test.js` plus existing AI regressions. GitHub Actions on PR #3 passed after correcting the dealer fixture. Deploy the browser and online server together; live Render deployment restarts in-memory rooms.
+
+
+## Stage 5.8 — Multiplayer results and match statistics
+
+When a multiplayer match ends, players see a dedicated **Match Complete** screen:
+- Finishing order uses the game's actual `finishedOrder`. First to finish appears first; the player still holding cards appears last. No alternative scoring or changes to BONDI rules are introduced.
+- Total **Bondi** events and completed **Aiy (އަތް)**, plus Bondi *given* and *received* for each seat. These counters update on the authoritative resolved Aiy state, including repeated identical Bondi sequences. They do not inspect unrevealed Aiybai.
+- A **same-room series** (last 20 matches) shows how often an AI player finished first at each Easy/Medium/Hard difficulty. This is descriptive, **not a win-rate comparison**, and resets when the online room is closed or the server restarts.
+- The host's **Play Again — same room** button remains directly below the results panel; guests see the same results and wait for the host. When the host initiates a rematch, the same room and match history are kept while humans tap Ready again.
+- Download-free **Copy Game Log** now includes the match's finishing order and Bondi counts.
+
+The same read-only results panel works in same-browser/local multiplayer. Play Again in the same room remains an online-room feature. The current 4-player game rules, difficulty settings, reconnects and AI decisions are unchanged.
+
+Validation: `node match-results.test.js` covers real Bondi resolution counters, duplicate sequence detection, projected privacy, finishing order, match archive idempotence and a complete online game/rematch. `node match-results-ui.test.js` covers the end-screen and rematch button state. The existing regression suite is unchanged. Browser scripts are cache-busted to version 5.8.0.
