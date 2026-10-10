@@ -1,0 +1,18 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const html=fs.readFileSync(__dirname+'/index.html','utf8');
+const css=html.slice(html.indexOf('<style>')+7,html.indexOf('</style>'));
+const gold=css.match(/--gold:\s*(#[0-9a-f]{6})/i)?.[1];
+const override=css.match(/\.mode-card\.primary\s+small\s*\{[^}]*color:\s*(#[0-9a-f]{6})/i)?.[1];
+assert(gold&&override,'Solo vs AI description requires an explicit readable text color');
+const linear=x=>{const c=parseInt(x,16)/255;return c<=0.04045?c/12.92:((c+0.055)/1.055)**2.4;};
+const luminance=hex=>0.2126*linear(hex.slice(1,3))+0.7152*linear(hex.slice(3,5))+0.0722*linear(hex.slice(5,7));
+const a=luminance(gold),b=luminance(override);
+const contrast=(Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);
+assert(contrast>=4.5,`Solo vs AI body text contrast must meet WCAG AA (actual: ${contrast.toFixed(2)}:1)`);
+assert.match(css,/\.mode-card small\s*\{[^}]*font-size:\s*\.9rem/,'home descriptions should be legibly sized');
+assert.match(html,/class="mode-card primary" id="soloMode"/,'correct primary button');
+assert.match(html,/class="mode-card secondary" id="multiMode"/,'secondary button unchanged');
+assert(!html.includes('Stage 4.4 Hard AI are unchanged'),'remove outdated AI version claim from home page');
+console.log('PASS home-screen contrast:',contrast.toFixed(2)+':1; Solo vs AI text legible; other mode still styled');
