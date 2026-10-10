@@ -147,9 +147,12 @@
   // Counters live on the authoritative game state, not in browser storage
   // or text logs, so reconnects and repeated renders cannot double-count.
   function recordAiyResolution(before, after) {
-    const oldRes = before && before.lastResolution ? JSON.stringify(before.lastResolution) : '';
-    const newRes = after && after.lastResolution ? JSON.stringify(after.lastResolution) : '';
-    if (!newRes || oldRes === newRes) return false;
+    // The same cards may be replayed after Bondi. Two consecutive resolved
+    // Aiy can have identical lastResolution JSON, so compare trick transitions
+    // rather than object equality: a completed Aiy clears its played cards.
+    if (!before || !after || !after.lastResolution ||
+        !Array.isArray(before.trick) || !before.trick.length ||
+        !Array.isArray(after.trick) || after.trick.length) return false;
     const stats = after.matchStats || clone(before && before.matchStats || newMatchStats());
     after.matchStats = stats;
     const resolution = after.lastResolution;
