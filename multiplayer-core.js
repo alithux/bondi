@@ -24,6 +24,7 @@
       dealerSeat: 3,
       aiDifficulty: 'hard',
       matchHistory: [],
+      roomStats: newRoomStats(),
       seats,
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -134,6 +135,18 @@
     return { room: nextRoom, game };
   }
 
+  // Cumulative statistics belong only to this room. Seat totals survive
+  // same-room rematches but never follow players into another room.
+  function newRoomStats() {
+    return {
+      matchesPlayed: 0,
+      firstPlaces: Array(MAX_PLAYERS).fill(0),
+      lastPlaces: Array(MAX_PLAYERS).fill(0),
+      bondiGiven: Array(MAX_PLAYERS).fill(0),
+      bondiReceived: Array(MAX_PLAYERS).fill(0)
+    };
+  }
+
   function newMatchStats() {
     return {
       bondiEvents: 0,
@@ -208,6 +221,21 @@
         bondiEvents: result.bondiEvents, normalAiy: result.normalAiy,
         firstFinisherIsAI: result.firstFinisherIsAI
       });
+      // Archive once per match. Do not aggregate at render time: reconnects
+      // and repeated snapshots must not increment room totals again.
+      const totals = r.roomStats || newRoomStats();
+      totals.matchesPlayed++;
+      if (result.players.length) {
+        totals.firstPlaces[result.players[0].seat]++;
+        // BONDI's loser is the final player still holding cards.
+        const last = result.players.find(p => p.lastHolding) || result.players[result.players.length - 1];
+        totals.lastPlaces[last.seat]++;
+      }
+      for (const player of result.players) {
+        totals.bondiGiven[player.seat] += player.bondiGiven;
+        totals.bondiReceived[player.seat] += player.bondiReceived;
+      }
+      r.roomStats = totals;
     }
     r.matchHistory = history.slice(-20);
     return r;
@@ -295,6 +323,7 @@
     canStart,
     startGame,
     newMatchStats,
+    newRoomStats,
     recordAiyResolution,
     matchResults,
     archiveMatch,

@@ -80,6 +80,37 @@ function testResults(){
  assert.equal(again.matchHistory.length,1,'same match not archived twice');
  assert.equal(archived.matchHistory[0].firstFinisherIsAI,true);
  assert.equal(archived.matchHistory[0].bondiEvents,7);
+ assert.equal(archived.roomStats.matchesPlayed,1);
+ assert.deepEqual(archived.roomStats.firstPlaces,[0,0,1,0]);
+ assert.deepEqual(archived.roomStats.lastPlaces,[0,0,0,1]);
+ assert.deepEqual(archived.roomStats.bondiGiven,[2,3,1,1]);
+ assert.deepEqual(archived.roomStats.bondiReceived,[1,2,4,0]);
+ assert.deepEqual(again.roomStats,archived.roomStats,'repeated archival must not count twice');
+
+ // A second match in exactly the same room must add to the first.
+ const rematchRoom={...archived,phase:'lobby',matchNumber:2};
+ const rematch=Core.startGame(rematchRoom,Engine,()=>0.5).game;
+ rematch.roundOver=true;
+ rematch.finishedOrder=[0,1,2];
+ rematch.players.forEach((p,i)=>{p.hand=i===3?[card('A♣')]:[];p.status=i===3?'active':'finished';});
+ rematch.matchStats={bondiEvents:3,normalAiy:9,bondiGiven:[1,0,2,0],bondiReceived:[0,1,2,0]};
+ const combined=Core.archiveMatch({...rematchRoom,phase:'game'},rematch);
+ assert.equal(combined.roomStats.matchesPlayed,2);
+ assert.deepEqual(combined.roomStats.firstPlaces,[1,0,1,0]);
+ assert.deepEqual(combined.roomStats.lastPlaces,[0,0,0,2]);
+ assert.deepEqual(combined.roomStats.bondiGiven,[3,3,3,1]);
+ assert.deepEqual(combined.roomStats.bondiReceived,[1,3,6,0]);
+ assert.equal(combined.matchHistory.length,2);
+
+ // The last-20 match-history display must not truncate overall room totals.
+ let longRoom=combined;
+ for(let number=3;number<=22;number++)
+   longRoom=Core.archiveMatch({...longRoom,matchNumber:number},rematch);
+ assert.equal(longRoom.matchHistory.length,20);
+ assert.equal(longRoom.roomStats.matchesPlayed,22,'totals accumulate for all matches, not just last 20');
+ assert.equal(longRoom.roomStats.firstPlaces[0],21);
+ assert.deepEqual(Core.createRoom({code:'NEWRM1',hostClientId:'other',hostName:'Ayya'}).roomStats,
+   Core.newRoomStats(),'creating a separate room must reset totals');
  assert.equal(Core.matchResults(archived,{...view,roundOver:false}),null);
  console.log('PASS finishing order, loser, seat stats, hidden cards and archive deduplication');
 }
@@ -119,6 +150,10 @@ async function testOnline(){
    assert.equal(result.bondiEvents,final.view.matchStats.bondiReceived.reduce((a,b)=>a+b,0));
    assert.equal(result.players.length,4);
    assert.equal(final.room.matchHistory.length,1,'server archives match on completion');
+   assert.equal(final.room.roomStats.matchesPlayed,1,'server publishes current-room totals');
+   assert.equal(final.room.roomStats.firstPlaces.reduce((a,b)=>a+b,0),1);
+   assert.equal(final.room.roomStats.lastPlaces.reduce((a,b)=>a+b,0),1);
+   assert.equal(final.room.roomStats.bondiGiven.reduce((a,b)=>a+b,0),result.bondiEvents);
    assert.equal(result.difficulty,'easy');
    send(h,'REMATCH');
    assert.equal(h.latest('SNAPSHOT').room.phase,'lobby');
