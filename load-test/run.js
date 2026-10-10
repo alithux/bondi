@@ -82,7 +82,7 @@ async function health(port){
 }
 async function localServer(){
  const port=await getPort(),lines=[];
- const child=spawn(process.execPath,['online-server/server.js'],{
+ const child=spawn(process.execPath,['load-test/local-server.js'],{
   cwd:path.resolve(__dirname,'..'),
   env:{...process.env,PORT:String(port),BONDI_ALLOWED_ORIGINS:''},
   stdio:['ignore','pipe','pipe']
