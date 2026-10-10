@@ -77,3 +77,12 @@ After each completed online or local-browser multiplayer match, BONDI shows **th
 - The game rules, BONDI resolutions, AI strategies and all individual match results are unchanged.
 
 Regression tests `match-results.test.js` and `match-results-ui.test.js` check two-match accumulation, archive idempotence, the 20-match history boundary, new-room reset, display and host-controlled rematch. Browser assets use cache version 5.8.1.
+
+
+## Stage 5.9 — Mobile multiplayer improvements
+
+The web app now has larger touch-friendly Aiybai cards on phones (68×94 pixels), clearer selected-card highlighting, and accessible spoken suit names and selected-state labels. The Play button names the selected card, while a turn-status notice beside the Aiybai shows when it is your turn, another player's turn, when the އަތް is resolving, or when an online connection is unavailable. Existing server-side turn validation and BONDI rules remain unchanged.
+
+Online-room lobbies show a selectable invite URL below the share buttons. If the embedded browser does not allow copying or sharing, the app selects the invitation link so it can be copied manually. Same-browser testing rooms do not display an online invite. Match standings and cumulative **current-room-only** statistics have larger mobile text. All buttons and form controls get a visible keyboard focus indicator.
+
+These are website/UI-only changes; no modification to the server, AI engine, dealing or four-player multiplayer defaults. Automated mobile UI checks in `mobile-ux.test.js` cover invite sharing fallbacks, selectable cards, turn state, Aiy pause and reconnection. The mobile asset version is 5.9.0. Field testing on iOS/Android is still recommended.

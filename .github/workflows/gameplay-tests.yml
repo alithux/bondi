@@ -13,6 +13,7 @@ jobs:
         with:
           node-version: '22'
       - run: node home-contrast.test.js
+      - run: node mobile-ux.test.js
       - run: node match-results-ui.test.js
       - run: node match-results.test.js
       - run: node multiplayer-ai-difficulty.test.js
