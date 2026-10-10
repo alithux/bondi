@@ -12,6 +12,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: node match-results-ui.test.js
+      - run: node match-results.test.js
       - run: node multiplayer-ai-difficulty.test.js
       - run: node post-bondi-lead.test.js
       - run: node stage56.test.js

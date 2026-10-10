@@ -334,6 +334,7 @@
       try {
         const started = Core.startGame(this.room, this.engine);
         this.room = started.room;
+        this.room.matchNumber = (Number(this.room.matchNumber) || 0) + 1;
         this.game = started.game;
         this.resolutionPause = false;
         this.pauseUntil = 0;
@@ -374,9 +375,8 @@
     }
 
     _afterPlay(before) {
-      const oldRes = before && before.lastResolution ? JSON.stringify(before.lastResolution) : '';
-      const newRes = this.game && this.game.lastResolution ? JSON.stringify(this.game.lastResolution) : '';
-      const resolved = !!newRes && oldRes !== newRes;
+      const resolved = Core.recordAiyResolution(before, this.game);
+      if (this.game.roundOver) this.room = Core.archiveMatch(this.room, this.game);
       clearTimeout(this.resolutionTimer);
       if (resolved && !this.game.roundOver) {
         this.resolutionPause = true;

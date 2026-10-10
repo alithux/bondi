@@ -15,6 +15,27 @@
 @media(min-width:700px){header{padding:18px 14px}h1{font-size:1.7rem}header p{font-size:.95rem}main{padding:16px}.panel{padding:15px;margin-bottom:13px}.mode-grid{grid-template-columns:1fr 1fr}.setup-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:end}.field-wide{grid-column:auto}.lobby-seats,.seats{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.lobby-seat,.seat{min-height:88px;padding:10px}.aiy{grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;min-height:92px;margin-top:10px}.cards{flex-wrap:wrap;overflow:visible;scroll-snap-type:none;padding-bottom:4px;margin-top:12px}.card{flex:0 0 47px;width:auto;min-width:47px;height:auto;min-height:68px;padding:9px 7px;font-size:1rem}.play-actions{position:static;display:flex;padding:0;background:transparent;border:0;backdrop-filter:none;-webkit-backdrop-filter:none;margin-top:12px}.play-actions button{min-height:44px}#copyFullLog{width:auto}.mp-actions{display:flex;flex-wrap:wrap}.mp-actions .wide{grid-column:auto}}
  .presence{font-size:.82rem;color:var(--muted);margin:6px 0;line-height:1.4}.presence.attention{color:#f4d27a}.presence.offline{color:#f5abb1}.turn-notice{padding:10px;border:1px solid #579781;border-radius:9px;font-weight:800;margin:8px 0}.turn-notice.your-turn{background:#2b4b2e;border-color:#f4d27a;color:#ffe49b}.turn-notice.waiting{background:#0b3028;color:var(--muted)}.seat.offline{border-color:#bd6b71}.seat.you{border-color:#f4d27a}.online-hint{margin:6px 0}.connection-action{min-height:38px}.rematch-panel{border-color:var(--gold)}.rematch-panel button{width:100%;margin-top:10px}.rematch-panel p{margin:7px 0;color:var(--muted)}
 
+
+/* Stage 5.8: match results, public statistics and same-room series. */
+.match-results{border-color:#6e9565;background:linear-gradient(170deg,#144634,#0b382d 65%)}
+.results-kicker{display:block;color:var(--gold);font-weight:850;letter-spacing:.09em;font-size:.73rem}
+.match-results h2{font-size:1.45rem;margin:7px 0 3px;line-height:1.25}
+.match-results .results-sub{color:var(--muted);font-size:.84rem;margin:0 0 14px}
+.results-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.results-metric{padding:12px;border-radius:11px;background:#0b3027;border:1px solid #39705b}
+.results-metric strong{font-size:1.38rem;color:var(--gold);display:block;overflow-wrap:anywhere}
+.results-metric span{display:block;font-size:.75rem;color:var(--muted)}
+.results-heading{font-size:.9rem;color:var(--gold);font-weight:750;margin:12px 0 9px}
+.results-list{display:grid;gap:8px}
+.results-item{display:grid;grid-template-columns:36px minmax(0,1fr);gap:9px;padding:10px;border:1px solid #3b705a;border-radius:10px;background:#0b3027}
+.results-item:first-child{border-color:var(--gold)}
+.results-rank{font-size:1.2rem;text-align:center;align-self:center;font-weight:800;color:var(--gold)}
+.results-name strong{display:block;overflow-wrap:anywhere}
+.results-name small{display:block;color:var(--muted);font-size:.75rem;margin-top:3px}
+.results-bondi{display:flex;gap:10px;flex-wrap:wrap;color:#d6e8d8;font-size:.76rem;margin-top:5px}
+.results-series{font-size:.81rem;color:var(--muted);line-height:1.5;margin:14px 0 0}
+@media(min-width:700px){.results-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.results-item{grid-template-columns:40px minmax(0,1fr) auto;align-items:center}.results-bondi{margin:0}}
+
 /* Stage 5.6.1: make the beginner multiplayer path readable at phone widths. */
 .setup-intro{margin:2px 0 14px;color:var(--muted);font-size:.88rem;line-height:1.5}
 .setup-choice{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0 10px}
@@ -44,7 +65,7 @@
 #shareStatus{min-height:0;margin:6px 0 0}.lobby-seat{min-height:87px}
 @media(min-width:700px){.setup-choice{max-width:600px}.entry-panel{max-width:600px}.room-share{max-width:440px}.lobby-primary-actions{max-width:600px}}
 </style></head>
-<body><header><h1>BONDI</h1><p>Stage 5.7 · Multiplayer AI difficulty · Hard AI 4.5</p></header>
+<body><header><h1>BONDI</h1><p>Stage 5.8 · Match results &amp; statistics · Hard AI 4.5</p></header>
 <main>
 <section class="panel" id="homePanel"><strong>Choose how to play</strong><p class="note">The confirmed BONDI rules and Stage 4.4 Hard AI are unchanged.</p><div class="mode-grid"><button class="mode-card primary" id="soloMode"><strong>Solo vs AI</strong><small>Play the current BONDI game against Easy, Medium, or Hard computer opponents.</small></button><button class="mode-card secondary" id="multiMode"><strong>Multiplayer</strong><small>Play in local-browser rooms, or connect to an online BONDI server for different devices.</small></button></div></section>
 
@@ -92,6 +113,19 @@
 <section class="panel hidden" id="multiplayerBar"><div class="row space"><div><strong>Multiplayer game</strong><div class="note">Room <span id="gameRoomCode"></span> · <span id="gameRole"></span></div><div class="note" id="mpErrorStatus" role="status"></div><div class="presence" id="gamePresence" aria-live="off"></div><button id="retryGame" class="secondary hidden">Reconnect now</button></div><button id="leaveGame" class="danger">Leave room</button></div></section>
 
 <div id="gameArea" class="hidden">
+<section class="panel match-results hidden" id="matchResultsPanel" aria-live="polite">
+<span class="results-kicker">🏆 MATCH COMPLETE</span>
+<h2 id="resultsTitle">Finishing order</h2>
+<p class="results-sub" id="resultsSubtitle"></p>
+<div class="results-metrics">
+ <div class="results-metric"><strong id="resultsBondiCount">0</strong><span>Bondi events</span></div>
+ <div class="results-metric"><strong id="resultsAiyCount">0</strong><span>Aiy completed</span></div>
+ <div class="results-metric"><strong id="resultsLastSeat">—</strong><span>Last holding cards</span></div>
+</div>
+<div class="results-heading">Finishing order · Bondi statistics</div>
+<div class="results-list" id="resultsStandings"></div>
+<p class="results-series" id="resultsSeries"></p>
+</section>
 <section class="panel rematch-panel hidden" id="rematchPanel"><strong id="rematchTitle">Game complete</strong><p id="rematchHint"></p><button class="primary hidden" id="playAgain">Play Again — same room</button></section>
 <section class="panel"><div id="status" class="status">Starting game…</div><div class="turn-notice hidden" id="turnNotice" role="status" aria-live="polite"></div><div id="seats" class="seats"></div></section>
 <section class="panel"><strong>Current Aiy</strong><div id="aiy" class="aiy"></div><div class="note" id="lead"></div></section>
@@ -99,7 +133,7 @@
 <details class="panel log-panel"><summary>Game log &amp; export</summary><div class="log-body"><button id="copyFullLog">Copy Game Log</button><span class="note" id="copyStatus"></span><div id="log" class="log">No game started.</div><p class="note" id="logNote">Solo strategy logs include your Aiybai and legal choices before each play.</p></div></details>
 </div>
 </main>
-<script src="source-part-01.js?v=5.7.0"></script><script src="source-part-02.js?v=5.7.0"></script><script src="source-part-03.js?v=5.7.0"></script><script src="source-part-04.js?v=5.7.0"></script><script src="source-part-05.js?v=5.7.0"></script><script src="source-part-06.js?v=5.7.0"></script><script src="source-part-07.js?v=5.7.0"></script><script src="source-part-08.js?v=5.7.0"></script><script src="source-part-09.js?v=5.7.0"></script><script src="source-part-10.js?v=5.7.0"></script><script src="game-engine.js?v=5.7.0"></script><script src="multiplayer-core.js?v=5.7.0"></script><script src="multiplayer-browser.js?v=5.7.0"></script><script src="online-config.js?v=5.7.0"></script><script src="online-client.js?v=5.7.0"></script>
+<script src="source-part-01.js?v=5.8.0"></script><script src="source-part-02.js?v=5.8.0"></script><script src="source-part-03.js?v=5.8.0"></script><script src="source-part-04.js?v=5.8.0"></script><script src="source-part-05.js?v=5.8.0"></script><script src="source-part-06.js?v=5.8.0"></script><script src="source-part-07.js?v=5.8.0"></script><script src="source-part-08.js?v=5.8.0"></script><script src="source-part-09.js?v=5.8.0"></script><script src="source-part-10.js?v=5.8.0"></script><script src="game-engine.js?v=5.8.0"></script><script src="multiplayer-core.js?v=5.8.0"></script><script src="multiplayer-browser.js?v=5.8.0"></script><script src="online-config.js?v=5.8.0"></script><script src="online-client.js?v=5.8.0"></script>
 <script>
 BondiEngineReady.then(()=>{
 const $=id=>document.getElementById(id);
@@ -131,7 +165,7 @@ function updatePresence(){
 }
 const handCount=p=>Number.isInteger(p.handCount)?p.handCount:(p.hand?p.hand.length:0);
 const setHidden=(id,hidden)=>$(id).classList.toggle('hidden',!!hidden);
-function showScreen(mode){appMode=mode;if(mode!=='multi-game')setHidden('rematchPanel',true);setHidden('homePanel',mode!=='home');setHidden('soloSetup',mode!=='solo');setHidden('multiSetup',mode!=='multi-setup');setHidden('lobbyPanel',mode!=='lobby');setHidden('multiplayerBar',mode!=='multi-game');setHidden('gameArea',!['solo','multi-game'].includes(mode));if(mode==='solo'&& !soloState)startSolo();}
+function showScreen(mode){appMode=mode;if(mode!=='multi-game'){setHidden('rematchPanel',true);setHidden('matchResultsPanel',true);}setHidden('homePanel',mode!=='home');setHidden('soloSetup',mode!=='solo');setHidden('multiSetup',mode!=='multi-setup');setHidden('lobbyPanel',mode!=='lobby');setHidden('multiplayerBar',mode!=='multi-game');setHidden('gameArea',!['solo','multi-game'].includes(mode));if(mode==='solo'&& !soloState)startSolo();}
 function addFullLog(line=''){fullGameLog.push(line);}
 function snapshotHands(label,sourceState=soloState){addFullLog(label);sourceState.players.forEach((p,i)=>addFullLog(`  ${p.name}: ${p.hand.length} cards${i===0?' ['+cardsText(p.hand)+']':''} · ${p.status}`));}
 function logDecision(playerIndex,card,sourceState=soloState){const p=sourceState.players[playerIndex],legal=BondiEngine.legalMoves(sourceState,playerIndex);addFullLog(`DECISION · ${p.name}${playerIndex===0?' (HUMAN)':' (AI '+$('aiDifficulty').value.toUpperCase()+')'}`);addFullLog(`  Aiy before play: ${sourceState.trick.length?sourceState.trick.map(e=>sourceState.players[e.playerIndex].name+' '+cardText(e.card)).join(' | '):'(new Aiy)'}`);addFullLog(`  Lead suit: ${sourceState.leadSuit||'(none)'}`);addFullLog(`  Aiybai before play: [${cardsText(p.hand)}]`);addFullLog(`  Legal choices: [${cardsText(legal)}]`);addFullLog(`  Chosen card: ${cardText(card)}`);}
@@ -202,7 +236,58 @@ function renderLobby(){
  $('lobbyHint').textContent=canStart?'All four seats are filled and every human player is ready.':rematch?'Same room, fresh cards: tap Ready again, then the host starts the next game.':'AI opponents are ready automatically. Only human players need to tap Ready.';
  updatePresence();
 }
-function renderMultiplayerGame(){const snap=mpSnapshot;if(!snap||!snap.room)return;$('gameRoomCode').textContent=snap.room.code;$('gameRole').textContent=snap.isHost?'Host':'Player';if(!snap.view){$('status').textContent='Starting multiplayer game…';return;}const aiSeats=new Set(snap.room.seats.filter(s=>s.isAI).map(s=>s.seat));$('logNote').textContent='Multiplayer logs are public-event logs. Opponents’ hidden Aiybai are never rendered in your game view.';renderGame(snap.view,{viewerSeat:snap.seat,aiSeats,resolutionPause:!!snap.view.resolutionPause,multiplayer:true});const canReplay=!!snap.view.roundOver&&mpKind==='online';setHidden('rematchPanel',!canReplay);if(canReplay){const ready=snap.connectionStatus==='connected';$('rematchTitle').textContent=`Match ${Number(snap.room.matchNumber||1)} complete`;setHidden('playAgain',!snap.isHost);$('playAgain').disabled=!snap.isHost||!ready;const departed=snap.room.seats.some(seat=>seat.aiTakeover);$('rematchHint').textContent=snap.isHost?(departed?'Start another match with the same room code and remaining players. Departed seats become AI, and everyone remaining taps Ready again.':'Start another match with the same players, names and room code. Everyone will tap Ready again before new cards are dealt.'):'Waiting for the host to choose Play Again. You will return to the same room lobby and tap Ready again.';}updatePresence();}
+
+function renderMatchResults(snap){
+ const result=BondiMultiplayerCore.matchResults(snap.room,snap.view);
+ setHidden('matchResultsPanel',!result);
+ if(!result)return;
+ const first=result.players[0],last=result.players.find(p=>p.lastHolding);
+ $('resultsTitle').textContent=first?`${first.name} finished first!`:'Match complete';
+ $('resultsSubtitle').textContent=`Match ${result.matchNumber} · ${result.difficulty.toUpperCase()} AI · Room ${snap.room.code}`;
+ $('resultsBondiCount').textContent=String(result.bondiEvents);
+ $('resultsAiyCount').textContent=String(result.bondiEvents+result.normalAiy);
+ $('resultsLastSeat').textContent=last?last.name:'None';
+ const medals=['🥇','🥈','🥉','4'];
+ $('resultsStandings').innerHTML=result.players.map(p=>`<div class="results-item">
+   <span class="results-rank">${medals[p.rank-1]||p.rank}</span>
+   <div class="results-name"><strong>${escapeHTML(p.name)}${p.seat===snap.seat?' · You':''}</strong>
+   <small>${p.isAI?'AI opponent':'Human player'} · Seat ${p.seat+1}${p.lastHolding?' · Last holding cards':''}</small></div>
+   <div class="results-bondi"><span>Gave ${p.bondiGiven} Bondi</span><span>Received ${p.bondiReceived} Bondi</span></div>
+ </div>`).join('');
+ const history=Array.isArray(snap.room.matchHistory)?snap.room.matchHistory:[];
+ const modes=['easy','medium','hard'].map(level=>{
+   const games=history.filter(h=>h.difficulty===level);
+   const aiFirst=games.filter(h=>h.firstFinisherIsAI).length;
+   return games.length?`${level[0].toUpperCase()+level.slice(1)}: AI finished first ${aiFirst}/${games.length} matches`:null;
+ }).filter(Boolean);
+ $('resultsSeries').textContent=history.length?
+   `Same-room series · ${history.length} completed match${history.length===1?'':'es'}. ${modes.join(' · ')}. Stats reset when the room closes.`:
+   'Stats are recorded for this match. Same-room series stats reset when the room closes.';
+}
+function renderMultiplayerGame(){
+ const snap=mpSnapshot;
+ if(!snap||!snap.room)return;
+ $('gameRoomCode').textContent=snap.room.code;
+ $('gameRole').textContent=snap.isHost?'Host':'Player';
+ if(!snap.view){$('status').textContent='Starting multiplayer game…';setHidden('matchResultsPanel',true);return;}
+ const aiSeats=new Set(snap.room.seats.filter(s=>s.isAI).map(s=>s.seat));
+ $('logNote').textContent='Multiplayer logs are public-event logs. Opponents’ hidden Aiybai are never rendered in your game view.';
+ renderGame(snap.view,{viewerSeat:snap.seat,aiSeats,resolutionPause:!!snap.view.resolutionPause,multiplayer:true});
+ renderMatchResults(snap);
+ const canReplay=!!snap.view.roundOver&&mpKind==='online';
+ setHidden('rematchPanel',!canReplay);
+ if(canReplay){
+   const ready=snap.connectionStatus==='connected';
+   $('rematchTitle').textContent='Another game?';
+   setHidden('playAgain',!snap.isHost);
+   $('playAgain').disabled=!snap.isHost||!ready;
+   const departed=snap.room.seats.some(seat=>seat.aiTakeover);
+   $('rematchHint').textContent=snap.isHost?
+     (departed?'Use the same room code. Departed seats become AI; remaining people tap Ready again.':'Same room and players, new cards. Everyone taps Ready again before the next match.') :
+     'Waiting for the host to choose Play Again. You will return to this room and tap Ready again.';
+ }
+ updatePresence();
+}
 function onMPUpdate(snapshot){mpSnapshot=snapshot;if(snapshot.room?.phase==='lobby'&&Number(snapshot.room.matchNumber||0)>0){selected=null;lastTapCard=null;lastTapAt=0;wasMyTurn=false;document.title='BONDI · Next game';}if(!snapshot.room){if(snapshot.connectionStatus)$('multiError').textContent=connectionLabel(snapshot.connectionStatus);return;}$('multiError').textContent='';$('mpErrorStatus').textContent='';if(snapshot.room.phase==='lobby'){showScreen('lobby');renderLobby();}else if(snapshot.room.phase==='game'){showScreen('multi-game');renderMultiplayerGame();}}
 function onMPError(message){$('multiError').textContent=message;$('mpErrorStatus').textContent=message;if(appMode==='lobby')$('lobbyHint').textContent=message;if(appMode==='multi-game'){$('hint').textContent=message;if(mpSnapshot?.isHost&&mpSnapshot?.view?.roundOver&&mpSnapshot?.connectionStatus==='connected')$('playAgain').disabled=false;}}
 function ensureMP(){const kind=$('transportMode').value;if(mp&&mpKind!==kind){mp.leave(false);mp=null;}
@@ -210,7 +295,7 @@ if(!mp){if(kind==='online'){const url=BondiOnline.serverWebSocketURL($('onlineSe
 function handleCardTap(cardId){const state=appMode==='solo'?soloState:currentMPView(),viewer=appMode==='solo'?0:currentMPSeat();if(!state||state.roundOver||state.currentPlayer!==viewer||state.resolutionPause||(appMode==='solo'&&soloResolutionPause))return;const now=Date.now();if(lastTapCard===cardId&&now-lastTapAt<=550){playSelected(cardId);return;}lastTapCard=cardId;lastTapAt=now;selected=cardId;if(appMode==='solo')renderSolo();else renderMultiplayerGame();}
 function playSelected(cardId){if(appMode==='solo')playSoloHuman(cardId);else if(appMode==='multi-game'&&mp){selected=null;mp.playCard(cardId);}}
 function leaveMultiplayer(){if(mp)mp.leave(true);mpSnapshot=null;selected=null;wasMyTurn=false;document.title='BONDI';showScreen('home');}
-setupDealer(4,3);try{$('onlineServer').value=window.BONDI_ONLINE_SERVER_URL||localStorage.getItem('bondi:online:url')||'';}catch(_){$('onlineServer').value=window.BONDI_ONLINE_SERVER_URL||'';}showTransportMode();setInterval(()=>{if(mpSnapshot?.room)updatePresence();},1000);$('players').addEventListener('change',()=>setupDealer(Number($('players').value),0));$('soloMode').addEventListener('click',()=>showScreen('solo'));$('multiMode').addEventListener('click',()=>showScreen('multi-setup'));$('chooseCreate').addEventListener('click',()=>chooseRoomEntry('create'));$('chooseJoin').addEventListener('click',()=>chooseRoomEntry('join'));$('soloBack').addEventListener('click',()=>showScreen('home'));$('multiBack').addEventListener('click',()=>showScreen('home'));$('newGame').addEventListener('click',startSolo);$('clear').addEventListener('click',()=>{selected=null;if(appMode==='solo')renderSolo();else renderMultiplayerGame();});$('play').addEventListener('click',()=>{if(selected)playSelected(selected)});$('createRoom').addEventListener('click',()=>{try{ensureMP().createRoom($('playerName').value);}catch(e){onMPError(e.message);}});$('joinCode').addEventListener('input',e=>e.target.value=BondiMultiplayer.normalizeCode(e.target.value));$('transportMode').addEventListener('change',showTransportMode);$('onlineServer').addEventListener('input',refreshResumeButton);for(const id of ['retryLobby','retryGame'])$(id).addEventListener('click',()=>{try{if(mpKind==='online')mp.retryConnection();}catch(e){onMPError(e.message);}});$('resumeRoom').addEventListener('click',()=>{try{ensureMP().resumeRoom();}catch(e){onMPError(e.message);}});$('joinRoom').addEventListener('click',()=>{try{ensureMP().joinRoom($('playerName').value,$('joinCode').value);}catch(e){onMPError(e.message);}});$('leaveRoom').addEventListener('click',leaveMultiplayer);$('leaveGame').addEventListener('click',leaveMultiplayer);$('readyButton').addEventListener('click',()=>{const room=mpSnapshot.room,me=room.seats.find(s=>s.clientId===mpSnapshot.clientId);if(me)mp.setReady(!me.ready);});$('mpDealer').addEventListener('change',e=>mp.setDealer(Number(e.target.value)));$('mpAIDifficulty').addEventListener('change',e=>{if(mpSnapshot?.isHost)mp.setAIDifficulty(e.target.value);});$('fillAI').addEventListener('click',()=>{if(!mpSnapshot?.isHost)return;const empty=mpSnapshot.room.seats.filter(s=>!s.clientId&&!s.isAI).length;for(let i=0;i<empty;i++)mp.addAI();});$('startRoom').addEventListener('click',()=>mp.startGame());$('playAgain').addEventListener('click',()=>{if(mpKind!=='online'||!mpSnapshot?.isHost||!mpSnapshot.view?.roundOver)return;$('playAgain').disabled=true;mp.requestRematch();});$('copyRoomCode').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(code)await copyLobbyText(code,`Room code ${code} copied. Share it with your friends.`);});$('shareRoom').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(!code||mpKind!=='online')return;const url=roomInviteURL(code);if(navigator.share){try{await navigator.share({title:'Join my BONDI room',text:`Join my BONDI room ${code}`,url});$('shareStatus').textContent='Invite shared.';return;}catch(e){if(e.name==='AbortError')return;}}await copyLobbyText(url,'Invite link copied. Send it to your friends.');});$('copyFullLog').addEventListener('click',async()=>{let text;if(appMode==='solo')text=fullGameLog.join('\n');else{const view=currentMPView(),room=mpSnapshot?.room;text=['BONDI MULTIPLAYER GAME LOG','Build: Stage 5.7','Engine: Stage 4.5',`AI difficulty: ${(room?.aiDifficulty||'hard').toUpperCase()}`,`Room: ${room?.code||''}`,`Match: ${Number(room?.matchNumber||1)}`,`Your seat: ${(currentMPSeat()??0)+1}`,'Seats:',...(room?.seats||[]).map((seat,i)=>`Seat ${i+1}: ${seat.name}${seat.aiTakeover?' (AI takeover after leaving)':seat.isAI?' (AI)':''}`),'',...multiplayerNamedLogs(view?.log||[],room)].join('\n');}try{await navigator.clipboard.writeText(text);$('copyStatus').textContent='Game log copied.';}catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();$('copyStatus').textContent='Game log copied.';}setTimeout(()=>$('copyStatus').textContent='',2500);});window.addEventListener('beforeunload',()=>{try{if(mp&&mp.room&&mpKind!=='online')mp.leave(true);}catch(e){}});const inviteCode=(window.location?.search||'').match(/[?&]room=([A-Z0-9]{6})(?:&|$)/i)?.[1];
+setupDealer(4,3);try{$('onlineServer').value=window.BONDI_ONLINE_SERVER_URL||localStorage.getItem('bondi:online:url')||'';}catch(_){$('onlineServer').value=window.BONDI_ONLINE_SERVER_URL||'';}showTransportMode();setInterval(()=>{if(mpSnapshot?.room)updatePresence();},1000);$('players').addEventListener('change',()=>setupDealer(Number($('players').value),0));$('soloMode').addEventListener('click',()=>showScreen('solo'));$('multiMode').addEventListener('click',()=>showScreen('multi-setup'));$('chooseCreate').addEventListener('click',()=>chooseRoomEntry('create'));$('chooseJoin').addEventListener('click',()=>chooseRoomEntry('join'));$('soloBack').addEventListener('click',()=>showScreen('home'));$('multiBack').addEventListener('click',()=>showScreen('home'));$('newGame').addEventListener('click',startSolo);$('clear').addEventListener('click',()=>{selected=null;if(appMode==='solo')renderSolo();else renderMultiplayerGame();});$('play').addEventListener('click',()=>{if(selected)playSelected(selected)});$('createRoom').addEventListener('click',()=>{try{ensureMP().createRoom($('playerName').value);}catch(e){onMPError(e.message);}});$('joinCode').addEventListener('input',e=>e.target.value=BondiMultiplayer.normalizeCode(e.target.value));$('transportMode').addEventListener('change',showTransportMode);$('onlineServer').addEventListener('input',refreshResumeButton);for(const id of ['retryLobby','retryGame'])$(id).addEventListener('click',()=>{try{if(mpKind==='online')mp.retryConnection();}catch(e){onMPError(e.message);}});$('resumeRoom').addEventListener('click',()=>{try{ensureMP().resumeRoom();}catch(e){onMPError(e.message);}});$('joinRoom').addEventListener('click',()=>{try{ensureMP().joinRoom($('playerName').value,$('joinCode').value);}catch(e){onMPError(e.message);}});$('leaveRoom').addEventListener('click',leaveMultiplayer);$('leaveGame').addEventListener('click',leaveMultiplayer);$('readyButton').addEventListener('click',()=>{const room=mpSnapshot.room,me=room.seats.find(s=>s.clientId===mpSnapshot.clientId);if(me)mp.setReady(!me.ready);});$('mpDealer').addEventListener('change',e=>mp.setDealer(Number(e.target.value)));$('mpAIDifficulty').addEventListener('change',e=>{if(mpSnapshot?.isHost)mp.setAIDifficulty(e.target.value);});$('fillAI').addEventListener('click',()=>{if(!mpSnapshot?.isHost)return;const empty=mpSnapshot.room.seats.filter(s=>!s.clientId&&!s.isAI).length;for(let i=0;i<empty;i++)mp.addAI();});$('startRoom').addEventListener('click',()=>mp.startGame());$('playAgain').addEventListener('click',()=>{if(mpKind!=='online'||!mpSnapshot?.isHost||!mpSnapshot.view?.roundOver)return;$('playAgain').disabled=true;mp.requestRematch();});$('copyRoomCode').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(code)await copyLobbyText(code,`Room code ${code} copied. Share it with your friends.`);});$('shareRoom').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(!code||mpKind!=='online')return;const url=roomInviteURL(code);if(navigator.share){try{await navigator.share({title:'Join my BONDI room',text:`Join my BONDI room ${code}`,url});$('shareStatus').textContent='Invite shared.';return;}catch(e){if(e.name==='AbortError')return;}}await copyLobbyText(url,'Invite link copied. Send it to your friends.');});$('copyFullLog').addEventListener('click',async()=>{let text;if(appMode==='solo')text=fullGameLog.join('\n');else{const view=currentMPView(),room=mpSnapshot?.room;text=['BONDI MULTIPLAYER GAME LOG','Build: Stage 5.8','Engine: Stage 4.5',`AI difficulty: ${(room?.aiDifficulty||'hard').toUpperCase()}`,`Room: ${room?.code||''}`,`Match: ${Number(room?.matchNumber||1)}`,`Your seat: ${(currentMPSeat()??0)+1}`,'Seats:',...(room?.seats||[]).map((seat,i)=>`Seat ${i+1}: ${seat.name}${seat.aiTakeover?' (AI takeover after leaving)':seat.isAI?' (AI)':''}`),'',...multiplayerNamedLogs(view?.log||[],room),...(view?.roundOver?['','MATCH RESULTS',...BondiMultiplayerCore.matchResults(room,view).players.map(p=>`${p.rank}. ${p.name} (Seat ${p.seat+1}) · Gave ${p.bondiGiven} Bondi · Received ${p.bondiReceived} Bondi${p.lastHolding?' · Last holding cards':''}`),`Bondi events: ${BondiMultiplayerCore.matchResults(room,view).bondiEvents}`]:[])].join('\n');}try{await navigator.clipboard.writeText(text);$('copyStatus').textContent='Game log copied.';}catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();$('copyStatus').textContent='Game log copied.';}setTimeout(()=>$('copyStatus').textContent='',2500);});window.addEventListener('beforeunload',()=>{try{if(mp&&mp.room&&mpKind!=='online')mp.leave(true);}catch(e){}});const inviteCode=(window.location?.search||'').match(/[?&]room=([A-Z0-9]{6})(?:&|$)/i)?.[1];
 if(inviteCode){$('joinCode').value=inviteCode.toUpperCase();chooseRoomEntry('join');showScreen('multi-setup');}else showScreen('home');
 });
 </script></body></html>
