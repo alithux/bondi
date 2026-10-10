@@ -22,6 +22,7 @@
       phase: 'lobby',
       hostClientId,
       dealerSeat: 3,
+      aiDifficulty: 'hard',
       seats,
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -75,6 +76,10 @@
       const seat = Number(action.seat);
       if (!Number.isInteger(seat) || seat < 0 || seat >= MAX_PLAYERS) throw new Error('Dealer seat is invalid.');
       r.dealerSeat = seat;
+    } else if (type === 'SET_AI_DIFFICULTY') {
+      assertHost(r, action.clientId);
+      if (!['easy', 'medium', 'hard'].includes(action.difficulty)) throw new Error('AI difficulty must be Easy, Medium, or Hard.');
+      r.aiDifficulty = action.difficulty;
     } else if (type === 'ADD_AI') {
       assertHost(r, action.clientId);
       const open = r.seats.find(s => !s.clientId && !s.isAI);
