@@ -311,6 +311,7 @@
     setReady(ready) { this._lobbyAction({ type: 'SET_READY', clientId: this.clientId, ready: !!ready }); }
     setName(name) { this.name = Core.cleanName(name); this._lobbyAction({ type: 'SET_NAME', clientId: this.clientId, name: this.name }); }
     setDealer(seat) { this._lobbyAction({ type: 'SET_DEALER', clientId: this.clientId, seat: Number(seat) }); }
+    setAIDifficulty(difficulty) { this._lobbyAction({ type: 'SET_AI_DIFFICULTY', clientId: this.clientId, difficulty }); }
     addAI() { this._lobbyAction({ type: 'ADD_AI', clientId: this.clientId }); }
     removeAI(seat) { this._lobbyAction({ type: 'REMOVE_AI', clientId: this.clientId, seat: Number(seat) }); }
 
@@ -411,7 +412,7 @@
         if (latest && Number(latest.revision || 0) !== expectedRevision) { this._syncSharedGame(true); return; }
         if (!this.game || this.game.roundOver || this.resolutionPause || !Core.isAISeat(this.room, this.game.currentPlayer)) return;
         const i = this.game.currentPlayer;
-        const card = this.engine.chooseAICard(this.game, i, this.aiDifficulty);
+        const card = this.engine.chooseAICard(this.game, i, this.room.aiDifficulty || 'hard');
         if (!card) return this._fail('AI could not choose a card.');
         const before = this.game;
         const result = this.engine.playCard(this.game, i, card.id);
