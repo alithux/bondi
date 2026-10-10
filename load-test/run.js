@@ -146,6 +146,10 @@ async function playRoom(room,deadline,latencies){
   const state=host.last('SNAPSHOT');
   if(!state?.view)throw Error('Missing game snapshot');
   if(state.view.roundOver)return {completed:true,moves};
+  if(state.view.resolutionPause){
+   await host.waitFor(m=>m.type==='SNAPSHOT'&&m.revision>state.revision&&m.view&&!m.view.resolutionPause,12000);
+   continue;
+  }
   const turn=state.view.currentPlayer;
   const player=clients.find(c=>c.clientId===state.room.seats[turn]?.clientId);
   if(!player)throw Error('No virtual client for active player');
