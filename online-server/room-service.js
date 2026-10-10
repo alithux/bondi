@@ -144,10 +144,7 @@ class RoomService {
   }
   _afterPlay(entry,before){
     entry.revision++;
-    const oldRes=before.lastResolution&&JSON.stringify(before.lastResolution);
-    const newRes=entry.game.lastResolution&&JSON.stringify(entry.game.lastResolution);
-    const resolved=!!newRes&&oldRes!==newRes;
-    if(resolved)Core.recordAiyResolution(before,entry.game);
+    const resolved=Core.recordAiyResolution(before,entry.game);
     if(entry.game.roundOver)entry.room=Core.archiveMatch(entry.room,entry.game);
     if(resolved&&!entry.game.roundOver){
       entry.resolutionPause=true;entry.pauseUntil=Date.now()+this.resolutionDelay;
