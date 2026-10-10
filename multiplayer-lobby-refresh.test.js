@@ -4,15 +4,15 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const html=fs.readFileSync(__dirname+'/index.html','utf8');
 const js=html.slice(html.indexOf('<script>')+8,html.lastIndexOf('</script>'));
-for(const id of ['chooseCreate','chooseJoin','joinChoicePanel','createChoicePanel','connectionOptions','hostControls','shareRoom','shareStatus','lobbyCount','lobbyProgress'])assert.match(html,new RegExp(`id="${id}"`));
+for(const id of ['chooseCreate','chooseJoin','joinChoicePanel','createChoicePanel','connectionOptions','hostControls','shareRoom','shareStatus','lobbyCount','lobbyProgress','mpAIDifficulty','lobbyAIStatus'])assert.match(html,new RegExp(`id="${id}"`));
 class ClassList{constructor(){this.items=new Set()}contains(x){return this.items.has(x)}toggle(x,v){if(v===undefined)v=!this.contains(x);if(v)this.items.add(x);else this.items.delete(x);} }
 class Element {constructor(id){this.id=id;this.value='';this.innerHTML='';this.textContent='';this.disabled=false;this.classList=new ClassList();this.handlers={};this.attrs={};}
  addEventListener(event,fn){this.handlers[event]=fn}setAttribute(k,v){this.attrs[k]=v}querySelectorAll(){return []}click(){return this.handlers.click?.({target:this})} }
 const els=new Map(),$=id=>{if(!els.has(id))els.set(id,new Element(id));return els.get(id)};
 const session={getItem(){return null},setItem(){},removeItem(){}};
 let current,clipboard='';
-class FakeClient{constructor(args){current=this;this.args=args;this.created=[];this.joined=[];this.ais=0;this.readies=[];this.starts=0;this.rematches=0;}
- createRoom(name){this.created.push(name)}joinRoom(name,code){this.joined.push([name,code])}setReady(x){this.readies.push(x)}startGame(){this.starts++}requestRematch(){this.rematches++}addAI(){this.ais++}removeAI(){}setDealer(){}leave(){} }
+class FakeClient{constructor(args){current=this;this.args=args;this.created=[];this.joined=[];this.ais=0;this.readies=[];this.starts=0;this.rematches=0;this.difficulties=[];}
+ createRoom(name){this.created.push(name)}joinRoom(name,code){this.joined.push([name,code])}setReady(x){this.readies.push(x)}startGame(){this.starts++}requestRematch(){this.rematches++}addAI(){this.ais++}removeAI(){}setDealer(){}setAIDifficulty(level){this.difficulties.push(level)}leave(){} }
 const document={getElementById:$,title:'BONDI'};
 const window={BONDI_ONLINE_SERVER_URL:'https://bondi-online.onrender.com',location:{protocol:'https:',origin:'https://alithux.github.io',pathname:'/bondi/',search:'?room=ABC123'},addEventListener(){}};
 const ctx={window,document,localStorage:session,sessionStorage:session,console,Date,setInterval:()=>0,setTimeout:()=>0,clearTimeout:()=>{},navigator:{clipboard:{writeText:async value=>clipboard=value}},
@@ -36,6 +36,11 @@ const room={code:'ABC123',phase:'lobby',matchNumber:1,hostClientId:'host',dealer
 function update(isHost,clientId){current.args.onUpdate({room,view:null,clientId,seat:isHost?0:1,isHost,connectionStatus:'connected'});}
 update(true,'host');
 assert.equal($('hostControls').classList.contains('hidden'),false);
+assert.equal($('mpAIDifficulty').value,'hard');
+room.aiDifficulty='medium';update(true,'host');
+assert.equal($('mpAIDifficulty').value,'medium');
+$('mpAIDifficulty').value='easy';$('mpAIDifficulty').handlers.change({target:$('mpAIDifficulty')});
+assert.deepEqual(current.difficulties,['easy']);room.aiDifficulty='easy';
 assert.equal($('startRoom').classList.contains('hidden'),false);
 assert.equal($('startRoom').disabled,true);
 assert.match($('lobbyProgress').textContent,/2 seats remaining/);
@@ -43,6 +48,8 @@ assert.match($('lobbySeats').innerHTML,/Host &lt;One&gt;/);
 $('fillAI').click();assert.equal(current.ais,2,'fill-AI sends precisely one request for each empty seat');
 console.log('PASS host has clear next action and AI fill sends exact empty-seat count');
 update(false,'guest');assert.equal($('hostControls').classList.contains('hidden'),true);
+assert.match($('lobbyAIStatus').textContent,/Easy/);
+$('mpAIDifficulty').handlers.change({target:$('mpAIDifficulty')});assert.equal(current.difficulties.length,1,'guest cannot change difficulty');
 assert.equal($('startRoom').classList.contains('hidden'),true);
 $('readyButton').click();assert.deepEqual(current.readies,[true]);
 room.seats[2]={seat:2,name:'AI 1',isAI:true,ready:true,connected:true};room.seats[3]={seat:3,name:'AI 2',isAI:true,ready:true,connected:true};
