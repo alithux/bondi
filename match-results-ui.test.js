@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const Core=require('./multiplayer-core.js');
 const html=fs.readFileSync(__dirname+'/index.html','utf8');
 const js=html.slice(html.indexOf('<script>')+8,html.lastIndexOf('</script>'));
-for(const id of ['matchResultsPanel','resultsStandings','resultsSeries','resultsBondiCount','resultsAiyCount','resultsLastSeat'])assert.match(html,new RegExp('id="'+id+'"'));
+for(const id of ['matchResultsPanel','resultsStandings','resultsSeries','roomTotals','resultsBondiCount','resultsAiyCount','resultsLastSeat'])assert.match(html,new RegExp('id="'+id+'"'));
 class ClassList {
  constructor(){this.values=new Set();}
  contains(v){return this.values.has(v);}
@@ -41,6 +41,7 @@ let room=Core.createRoom({code:'AB1234',hostClientId:'host',hostName:'Ayya <Host
 for(let i=0;i<3;i++)room=Core.applyLobbyAction(room,{type:'ADD_AI',clientId:'host'});
 room.matchNumber=3;room.phase='game';room.aiDifficulty='medium';
 room.matchHistory=[{matchNumber:1,difficulty:'easy',firstFinisherIsAI:true},{matchNumber:2,difficulty:'hard',firstFinisherIsAI:false},{matchNumber:3,difficulty:'medium',firstFinisherIsAI:true}];
+room.roomStats={matchesPlayed:3,firstPlaces:[1,0,2,0],lastPlaces:[0,1,0,2],bondiGiven:[6,2,8,4],bondiReceived:[3,4,9,4]};
 const view={
  players:room.seats.map((s,i)=>({name:s.name,id:i,status:i===3?'active':'finished',handCount:i===3?7:0,hand:[]})),
  dealer:3,currentPlayer:3,leadSuit:null,trick:[],pendingFinish:[],finishedOrder:[2,0,1],roundOver:true,
@@ -56,9 +57,11 @@ assert.equal($('resultsAiyCount').textContent,'24');
 assert.match($('resultsStandings').innerHTML,/Ayya &lt;Host&gt;/,'names escaped');
 assert.match($('resultsStandings').innerHTML,/Gave 4 Bondi/);
 assert.match($('resultsTitle').textContent,/AI 2 finished first/);
-assert.match($('resultsSeries').textContent,/Easy: AI finished first 1\/1/);
-assert.match($('resultsSeries').textContent,/Medium: AI finished first 1\/1/);
-assert.match($('resultsSeries').textContent,/Hard: AI finished first 0\/1/);
+assert.match($('resultsSeries').textContent,/3 completed matches in this room/);
+assert.match($('roomTotals').innerHTML,/Ayya &lt;Host&gt;/,'seat names escaped in cumulative stats');
+assert.match($('roomTotals').innerHTML,/First: 2 · Last: 0/,'room first/last counts appear');
+assert.match($('roomTotals').innerHTML,/Bondi given: 8 · Received: 9/,'room Bondi counts appear');
+assert.doesNotMatch($('resultsSeries').textContent,/AI finished first/,'simplified room stats omit per-difficulty clutter');
 assert.equal($('playAgain').classList.contains('hidden'),false);
 $('playAgain').click();assert.equal(current.rematches,1);
 update(false);
@@ -68,4 +71,4 @@ view.roundOver=false;
 update(true);
 assert.equal($('matchResultsPanel').classList.contains('hidden'),true,'results hidden during game');
 assert.equal($('rematchPanel').classList.contains('hidden'),true,'rematch hidden during game');
-console.log('PASS Stage 5.8 results UI, HTML escaping, AI-by-difficulty series, host-only rematch and reset');
+console.log('PASS room-only cumulative stats UI, HTML escaping, host-only rematch and reset');
