@@ -63,3 +63,17 @@ When a multiplayer match ends, players see a dedicated **Match Complete** screen
 The same read-only results panel works in same-browser/local multiplayer. Play Again in the same room remains an online-room feature. The current 4-player game rules, difficulty settings, reconnects and AI decisions are unchanged.
 
 Validation: `node match-results.test.js` covers real Bondi resolution counters, duplicate sequence detection, projected privacy, finishing order, match archive idempotence and a complete online game/rematch. `node match-results-ui.test.js` covers the end-screen and rematch button state. The existing regression suite is unchanged. Browser scripts are cache-busted to version 5.8.0.
+
+
+## Stage 5.8.1 — Simple statistics for the current multiplayer room
+
+After each completed online or local-browser multiplayer match, BONDI shows **that match's finishing order** followed by one compact **This room · all matches** scoreboard. Each of the four seats shows first-place finishes, last-place finishes, Bondi given and Bondi received, accumulated over rematches in **that same room only**.
+
+- Room totals are accumulated once on the authoritative room state as each match ends; repeated snapshots/reconnects do not count a match twice.
+- Totals survive **Play Again — same room**, regardless of how often you rematch. They are not limited to the most recent 20 entries in the internal match-history list.
+- Totals are **by seat**. If an AI takes over a departing player's seat, the numbers for that seat remain, under its current displayed name.
+- A different room always starts from zero. Statistics are not saved as a global player profile and are lost when the room is closed or the online server restarts.
+- The Copy Game Log includes the current room's cumulative figures.
+- The game rules, BONDI resolutions, AI strategies and all individual match results are unchanged.
+
+Regression tests `match-results.test.js` and `match-results-ui.test.js` check two-match accumulation, archive idempotence, the 20-match history boundary, new-room reset, display and host-controlled rematch. Browser assets use cache version 5.8.1.
