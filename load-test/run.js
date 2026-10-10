@@ -194,6 +194,7 @@ async function stage(count,budgetMs){
   }
   await sample();
   const observed=await health(instance.port);
+  if(rooms.length!==count)console.error('Room setup diagnostics:',JSON.stringify(errors.slice(0,12)));
   assert.equal(rooms.length,count,`Only ${rooms.length}/${count} rooms started`);
   assert.equal(observed.rooms,count,'Unexpected isolated server room count');
   if(count===100){
