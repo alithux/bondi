@@ -122,7 +122,7 @@ class RoomService {
       this._broadcast(entry);return;
     }
     if(entry.room.phase==='lobby'){
-      const t={READY:'SET_READY',DEALER:'SET_DEALER',ADD_AI:'ADD_AI',REMOVE_AI:'REMOVE_AI',NAME:'SET_NAME'}[action];
+      const t={READY:'SET_READY',DEALER:'SET_DEALER',AI_DIFFICULTY:'SET_AI_DIFFICULTY',ADD_AI:'ADD_AI',REMOVE_AI:'REMOVE_AI',NAME:'SET_NAME'}[action];
       if(action==='START'){
         if(s.clientId!==entry.room.hostClientId)throw Error('Only the host can start.');
         const started=Core.startGame(entry.room,Engine,secureRandom);
@@ -131,7 +131,7 @@ class RoomService {
       }
       if(!t)throw Error('That action is not allowed in the lobby.');
       const name=t==='SET_NAME'?requireDistinctName(entry.room,msg.name,s.clientId):msg.name;
-      entry.room=Core.applyLobbyAction(entry.room,{type:t,clientId:s.clientId,ready:!!msg.ready,seat:msg.seat,name});
+      entry.room=Core.applyLobbyAction(entry.room,{type:t,clientId:s.clientId,ready:!!msg.ready,seat:msg.seat,name,difficulty:msg.difficulty});
       this._broadcast(entry);return;
     }
     if(entry.room.phase!=='game'||action!=='PLAY')throw Error('That action is not allowed during the game.');
@@ -166,10 +166,10 @@ class RoomService {
     entry.aiTimer=setTimeout(()=>{
       if(!this.rooms.has(entry.room.code)||entry.game.roundOver||entry.resolutionPause||!Core.isAISeat(entry.room,entry.game.currentPlayer))return;
       const seat=entry.game.currentPlayer;
-      const card=Engine.chooseAICard(entry.game,seat,'hard');
+      const card=Engine.chooseAICard(entry.game,seat,entry.room.aiDifficulty||'hard');
       if(!card){this.logger('AI had no move',entry.room.code);return;}
       const before=entry.game;
-      const tactic=Engine.explainHardAILead(before,seat,card);
+      const tactic=(entry.room.aiDifficulty||'hard')==='hard'?Engine.explainHardAILead(before,seat,card):null;
       const r=Engine.playCard(before,seat,card.id);
       if(!r.ok){this.logger('Illegal AI move',entry.room.code,r.error);return;}
       // Insert public-information-only reasoning immediately before the lead.
