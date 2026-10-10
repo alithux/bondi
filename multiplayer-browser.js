@@ -375,10 +375,7 @@
     }
 
     _afterPlay(before) {
-      const oldRes = before && before.lastResolution ? JSON.stringify(before.lastResolution) : '';
-      const newRes = this.game && this.game.lastResolution ? JSON.stringify(this.game.lastResolution) : '';
-      const resolved = !!newRes && oldRes !== newRes;
-      if (resolved) Core.recordAiyResolution(before, this.game);
+      const resolved = Core.recordAiyResolution(before, this.game);
       if (this.game.roundOver) this.room = Core.archiveMatch(this.room, this.game);
       clearTimeout(this.resolutionTimer);
       if (resolved && !this.game.roundOver) {
