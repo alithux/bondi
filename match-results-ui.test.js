@@ -55,7 +55,7 @@ assert.equal($('resultsBondiCount').textContent,'8');
 assert.equal($('resultsAiyCount').textContent,'24');
 assert.match($('resultsStandings').innerHTML,/Ayya &lt;Host&gt;/,'names escaped');
 assert.match($('resultsStandings').innerHTML,/Gave 4 Bondi/);
-assert.match($('resultsTitle').textContent,/AI 1 finished first/);
+assert.match($('resultsTitle').textContent,/AI 2 finished first/);
 assert.match($('resultsSeries').textContent,/Easy: AI finished first 1\/1/);
 assert.match($('resultsSeries').textContent,/Medium: AI finished first 1\/1/);
 assert.match($('resultsSeries').textContent,/Hard: AI finished first 0\/1/);
