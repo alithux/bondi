@@ -53,7 +53,7 @@ async function main(){
         assert.match(guest.latest('ERROR').message,/host/i);
         assert.equal(host.latest('SNAPSHOT').room.aiDifficulty,level);
         action(host,'ADD_AI');action(host,'ADD_AI');
-        action(host,'DEALER',{seat:2}); // first turn is seat 2, an AI
+        action(host,'DEALER',{seat:3}); // the dealer's right is seat 3 (index 2), an AI
         action(host,'READY',{ready:true});
         action(guest,'READY',{ready:true});
         action(host,'START');
