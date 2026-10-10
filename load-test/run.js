@@ -161,7 +161,7 @@ async function playRoom(room,deadline,latencies){
   cmd(player,'PLAY',{cardId:pick.id});
   const change=await host.waitFor(m=>m.type==='SNAPSHOT'&&m.revision>state.revision&&m.view,15000);
   latencies.push(performance.now()-before);
-  if(player.errorCount!==previousErrorCount)throw Error('Server refused virtual player action');
+  if(player.errorCount!==previousErrorCount)throw Error('Server refused virtual player action: '+(player.last('ERROR')?.message||'unknown')+' (seat '+turn+', card '+pick.id+')');
   if(change.room.code!==room.code)throw Error('Room code changed');
   moves++;
  }
