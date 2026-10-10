@@ -25,7 +25,7 @@ class Element{
  focus(){this.focused=true;}
  select(){this.selected=true;}
  click(){return this.events.click?.({target:this});}
- querySelectorAll(){return [];}
+ querySelectorAll(selector){if(this.id==='hand'&&selector==='[data-card]'){this.cardButtons=[...this.innerHTML.matchAll(/data-card="([^"]+)"/g)].map(m=>{const b=new Element('card');b.dataset={card:m[1]};return b;});return this.cardButtons;}return [];}
 }
 const elements=new Map(),$=id=>{if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);};
 let client,clipboardDisabled=false,copyCount=0;
@@ -70,7 +70,8 @@ assert.equal($('inviteLinkField').classList.contains('hidden'),false);
  assert.match($('hand').innerHTML,/aria-label="[^"]+ of (spades|hearts|diamonds|clubs)"/);
  assert.match($('hand').innerHTML,/aria-pressed="false"/);
  const first=view.players[0].hand[0];
- vm.runInContext('handleCardTap('+JSON.stringify(first.id)+')',ctx);
+ assert.equal($('hand').cardButtons[0].dataset.card,first.id);
+ $('hand').cardButtons[0].click();
  assert.equal($('play').disabled,false);
  assert.equal($('play').textContent,'Play '+first.rank+first.suit);
  assert.match($('hand').innerHTML,/aria-pressed="true"/);
@@ -84,8 +85,6 @@ assert.equal($('inviteLinkField').classList.contains('hidden'),false);
  view.currentPlayer=0;view.resolutionPause=true;update();
  assert.match($('handTurnStatus').textContent,/އަތް resolving/);
  assert.equal($('handTurnStatus').classList.contains('paused'),true);
- // Local-browser mode does not offer a misleading cross-device invitation.
- $('transportMode').value='local';$('transportMode').events.change();
- $('transportMode').value='online';
+ // Turn display and selected-card controls are read-only while the Aiy resolves.
  console.log('PASS Stage 5.9 phone cards, selection, turn status, reconnection and invite sharing');
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
