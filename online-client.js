@@ -100,6 +100,7 @@
    setReady(ready){this._send({type:'ACTION',action:'READY',ready:!!ready});}
    setName(name){this._send({type:'ACTION',action:'NAME',name:String(name||'').slice(0,24)});}
    setDealer(seat){this._send({type:'ACTION',action:'DEALER',seat:Number(seat)});}
+   setAIDifficulty(difficulty){this._send({type:'ACTION',action:'AI_DIFFICULTY',difficulty});}
    addAI(){this._send({type:'ACTION',action:'ADD_AI'});}
    removeAI(seat){this._send({type:'ACTION',action:'REMOVE_AI',seat:Number(seat)});}
    startGame(){this._send({type:'ACTION',action:'START'});}
