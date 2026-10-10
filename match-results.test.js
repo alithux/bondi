@@ -34,10 +34,24 @@ function testResolution(){
  assert.equal(second.state.matchStats.bondiReceived[0],1);
  assert.equal(Core.recordAiyResolution(second.state,second.state),false);
  assert.equal(second.state.matchStats.bondiEvents,1,'rerenders cannot recount');
- const after=structuredClone(second.state);
+ const beforeNormal=structuredClone(second.state);
+ beforeNormal.trick=[{playerIndex:0,card:card('2♥'),bondi:false}];
+ const after=structuredClone(beforeNormal);
+ after.trick=[];
  after.lastResolution={type:'normal',leadSuit:'♥',cards:[],winnerIndex:0};
- assert.equal(Core.recordAiyResolution(second.state,after),true);
+ assert.equal(Core.recordAiyResolution(beforeNormal,after),true);
  assert.equal(after.matchStats.normalAiy,1);
+ // After a Bondi card is returned, the very same combination can resolve
+ // again. Its lastResolution data may be identical, but it is a NEW Aiy.
+ const beforeRepeat=structuredClone(after);
+ beforeRepeat.trick=[{playerIndex:0,card:card('2♥'),bondi:false}];
+ const repeated=structuredClone(beforeRepeat);
+ repeated.trick=[];
+ repeated.lastResolution=structuredClone(second.state.lastResolution);
+ assert.equal(Core.recordAiyResolution(beforeRepeat,repeated),true);
+ assert.equal(repeated.matchStats.bondiEvents,2);
+ assert.equal(repeated.matchStats.bondiGiven[1],2);
+ assert.equal(repeated.matchStats.bondiReceived[0],2);
  console.log('PASS exact counts for Bondi given, Bondi received and normal Aiy');
 }
 function testResults(){
