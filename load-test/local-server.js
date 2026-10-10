@@ -6,7 +6,8 @@ const {RoomService}=require('../online-server/room-service.js');
 const {upgradeWebSocket}=require('../online-server/websocket.js');
 const port=Number(process.env.PORT);
 if(!Number.isInteger(port)||port<1||port>65535)throw Error('Local test requires PORT');
-const service=new RoomService({logger:(...args)=>console.warn('[BENCH]',...args)});
+// Skip presentation delays so benchmarking measures networking and game logic.
+const service=new RoomService({aiDelay:0,resolutionDelay:0,logger:(...args)=>console.warn('[BENCH]',...args)});
 const server=http.createServer((req,res)=>{
  if(req.url==='/health'&&req.method==='GET'){
   res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
