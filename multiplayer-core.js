@@ -248,7 +248,7 @@
     for (let step = 1; step < game.players.length; step++) {
       const i = (fromSeat + step) % game.players.length;
       const p = game.players[i];
-      if (p && p.status === 'active' && Array.isArray(p.hand) && p.hand.length) return i;
+      if (p && p.status === 'active' && (Number.isInteger(p.handCount) ? p.handCount : p.hand?.length) > 0) return i;
     }
     return -1;
   }
