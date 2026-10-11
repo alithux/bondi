@@ -22,7 +22,7 @@ function translateFinishLogs(log,room) {
   return log.map(x=>x.replace(/\bPlayer ([1-4]) has finished\./g,(_,n)=>`${room.seats[Number(n)-1].name} (Seat ${n}) has finished.`));
 }
 class RoomService {
-  constructor({aiDelay=650,resolutionDelay=1800,graceMs=SESSION_GRACE_MS, maxRooms=100,logger=()=>{}}={}) {
+  constructor({aiDelay=650,resolutionDelay=5000,graceMs=SESSION_GRACE_MS, maxRooms=100,logger=()=>{}}={}) {
     this.rooms=new Map();this.sessions=new Map();this.aiDelay=aiDelay;this.resolutionDelay=resolutionDelay;this.graceMs=graceMs;this.maxRooms=maxRooms;this.logger=logger;
   }
   attach(peer) {
@@ -55,7 +55,7 @@ class RoomService {
     if(!entry||!Core.seatForClient(entry.room,s.clientId))throw Error('Room is no longer available.');
     return {s,entry};
   }
-  _roomEntry(room){return {room,game:null,aiTimer:null,resolutionTimer:null,resolutionPause:false,pauseUntil:0,updatedAt:Date.now(),revision:0};}
+  _roomEntry(room){return {room,game:null,aiTimer:null,resolutionTimer:null,resolutionPause:false,aiybaiWindowOpen:false,pauseUntil:0,updatedAt:Date.now(),revision:0};}
   _create(peer,msg){
     if(peer._bondiv2.token)throw Error('Leave the current room first.');
     if(this.rooms.size>=this.maxRooms)throw Error('Server is full. Try again later.');
@@ -102,7 +102,7 @@ class RoomService {
       if(s.clientId!==entry.room.hostClientId)throw Error('Only the host can request another game.');
       if(entry.room.phase!=='game'||!entry.game||!entry.game.roundOver)throw Error('Finish the current game before starting another.');
       clearTimeout(entry.aiTimer);clearTimeout(entry.resolutionTimer);
-      entry.aiTimer=null;entry.resolutionTimer=null;entry.resolutionPause=false;entry.pauseUntil=0;
+      entry.aiTimer=null;entry.resolutionTimer=null;entry.resolutionPause=false;entry.aiybaiWindowOpen=false;entry.pauseUntil=0;
       entry.game=null;
       entry.room.phase='lobby';
       // The previous match keeps human names even after AI takes a departed
@@ -126,7 +126,7 @@ class RoomService {
       if(action==='START'){
         if(s.clientId!==entry.room.hostClientId)throw Error('Only the host can start.');
         const started=Core.startGame(entry.room,Engine,secureRandom);
-        entry.room=started.room;entry.room.matchNumber=(Number(entry.room.matchNumber)||0)+1;entry.game=started.game;entry.revision++;
+        entry.room=started.room;entry.room.matchNumber=(Number(entry.room.matchNumber)||0)+1;entry.game=started.game;entry.resolutionPause=false;entry.aiybaiWindowOpen=false;entry.revision++;
         this._broadcast(entry);this._schedule(entry);return;
       }
       if(!t)throw Error('That action is not allowed in the lobby.');
@@ -134,7 +134,29 @@ class RoomService {
       entry.room=Core.applyLobbyAction(entry.room,{type:t,clientId:s.clientId,ready:!!msg.ready,seat:msg.seat,name,difficulty:msg.difficulty});
       this._broadcast(entry);return;
     }
+    if(entry.room.phase==='game'&&action==='REQUEST_AIYBAI'){
+      const r=Core.requestAiybai(entry.room,entry.game,s.clientId,
+        entry.resolutionPause&&entry.aiybaiWindowOpen);
+      if(!r.ok)throw Error(r.error);
+      entry.game=r.state;
+      entry.aiybaiWindowOpen=false;
+      clearTimeout(entry.resolutionTimer);
+      // AI answers a request deliberately; it never takes cards without one.
+      if(Core.isAISeat(entry.room,r.toSeat))
+        entry.resolutionTimer=setTimeout(()=>this._settleAiybai(entry,r.toSeat,true),Math.max(150,this.aiDelay));
+      else
+        // Non-response cancels the request after 30s; it never transfers cards.
+        entry.resolutionTimer=setTimeout(()=>this._settleAiybai(entry,r.toSeat,false),30000);
+      entry.revision++;this._broadcast(entry);return;
+    }
+    if(entry.room.phase==='game'&&action==='ANSWER_AIYBAI'){
+      const seat=Core.seatForClient(entry.room,s.clientId);
+      if(!seat||seat.isAI||!entry.game?.aiybaiRequest||entry.game.aiybaiRequest.toSeat!==seat.seat)
+        throw Error('Only the requested human player may accept or decline.');
+      this._settleAiybai(entry,seat.seat,msg.accept===true);return;
+    }
     if(entry.room.phase!=='game'||action!=='PLAY')throw Error('That action is not allowed during the game.');
+    if(entry.game?.aiybaiRequest)throw Error('Wait for the requested player to answer.');
     if(entry.resolutionPause)throw Error('Wait for the Aiy to resolve.');
     const cardId=String(msg.cardId||'');
     const before=entry.game;
@@ -142,17 +164,39 @@ class RoomService {
     if(!r.ok)throw Error(r.error);
     entry.game=r.state;this._afterPlay(entry,before);
   }
+  _settleAiybai(entry,answerSeat,accepted){
+    if(!entry.game?.aiybaiRequest)return;
+    const result=Core.answerAiybai(entry.game,answerSeat,accepted);
+    if(!result.ok){this.logger('Aiybai answer rejected',result.error);return;}
+    clearTimeout(entry.resolutionTimer);
+    entry.game=result.state;
+    entry.aiybaiWindowOpen=false;
+    if(entry.game.roundOver){
+      entry.room=Core.archiveMatch(entry.room,entry.game);
+      entry.resolutionPause=false;entry.pauseUntil=0;entry.revision++;this._broadcast(entry);return;
+    }
+    // Only one offer per between-Aiy window. Both outcomes resume play.
+    entry.resolutionPause=true;entry.pauseUntil=Date.now()+800;
+    entry.revision++;this._broadcast(entry);
+    entry.resolutionTimer=setTimeout(()=>{
+      if(!this.rooms.has(entry.room.code))return;
+      entry.resolutionPause=false;entry.pauseUntil=0;entry.revision++;
+      this._broadcast(entry);this._schedule(entry);
+    },800);
+  }
   _afterPlay(entry,before){
     entry.revision++;
     const resolved=Core.recordAiyResolution(before,entry.game);
     if(entry.game.roundOver)entry.room=Core.archiveMatch(entry.room,entry.game);
+    entry.aiybaiWindowOpen=!!(resolved&&!entry.game.roundOver);
     if(resolved&&!entry.game.roundOver){
       entry.resolutionPause=true;entry.pauseUntil=Date.now()+this.resolutionDelay;
       this._broadcast(entry);
       clearTimeout(entry.resolutionTimer);
       entry.resolutionTimer=setTimeout(()=>{
         if(!this.rooms.has(entry.room.code))return;
-        entry.resolutionPause=false;entry.pauseUntil=0;entry.revision++;
+        if(entry.game.aiybaiRequest)return;
+        entry.resolutionPause=false;entry.pauseUntil=0;entry.aiybaiWindowOpen=false;entry.revision++;
         this._broadcast(entry);this._schedule(entry);
       },this.resolutionDelay);
     }else{this._broadcast(entry);this._schedule(entry);}
@@ -163,7 +207,7 @@ class RoomService {
     const i=entry.game.currentPlayer;
     if(!Core.isAISeat(entry.room,i))return;
     entry.aiTimer=setTimeout(()=>{
-      if(!this.rooms.has(entry.room.code)||entry.game.roundOver||entry.resolutionPause||!Core.isAISeat(entry.room,entry.game.currentPlayer))return;
+      if(!this.rooms.has(entry.room.code)||entry.game.roundOver||entry.resolutionPause||entry.game.aiybaiRequest||!Core.isAISeat(entry.room,entry.game.currentPlayer))return;
       const seat=entry.game.currentPlayer;
       const card=Engine.chooseAICard(entry.game,seat,entry.room.aiDifficulty||'hard');
       if(!card){this.logger('AI had no move',entry.room.code);return;}
@@ -184,7 +228,7 @@ class RoomService {
       if(s.roomCode!==entry.room.code||!s.peer||s.peer.closed)continue;
       const seat=Core.seatForClient(entry.room,s.clientId);
       if(!seat)continue;
-      const view=entry.game?Core.projectGame(entry.room,entry.game,s.clientId,entry.resolutionPause):null;
+      const view=entry.game?Core.projectGame(entry.room,entry.game,s.clientId,entry.resolutionPause,entry.aiybaiWindowOpen):null;
       if(view)view.log=translateFinishLogs(view.log,entry.room);
       s.peer.sendJSON({type:'SNAPSHOT',room,view,clientId:s.clientId,seat:seat.seat,isHost:s.clientId===room.hostClientId,revision:entry.revision});
     }
@@ -202,6 +246,11 @@ class RoomService {
       if(entry.room.phase==='closed')this._closeRoom(entry.room.code);
       else {entry.revision++;this._broadcast(entry);}
     }else if(entry.room.phase==='game'){
+      if(entry.game?.aiybaiRequest){
+        const seat=Core.seatForClient(entry.room,s.clientId);
+        if(seat&&[entry.game.aiybaiRequest.fromSeat,entry.game.aiybaiRequest.toSeat].includes(seat.seat))
+          this._settleAiybai(entry,entry.game.aiybaiRequest.toSeat,false);
+      }
       const previous=Core.seatForClient(entry.room,s.clientId);
       const previousName=previous.name;
       const r=Core.replaceClientWithAI(entry.room,s.clientId);entry.room=r.room;
