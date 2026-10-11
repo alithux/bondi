@@ -25,6 +25,8 @@ class FakeClient {
  constructor(args){this.args=args;this.rematches=0;current=this;}
  createRoom(){}
  requestRematch(){this.rematches++;}
+  requestAiybai(){this.requests=(this.requests||0)+1;}
+  answerAiybai(yes){this.answer=!!yes;}
 }
 const document={getElementById:$,title:'BONDI'};
 const window={BONDI_ONLINE_SERVER_URL:'https://bondi-online.onrender.com',location:{protocol:'https:',origin:'https://alithux.github.io',pathname:'/bondi/',search:''},addEventListener(){}};
@@ -71,4 +73,30 @@ view.roundOver=false;
 update(true);
 assert.equal($('matchResultsPanel').classList.contains('hidden'),true,'results hidden during game');
 assert.equal($('rematchPanel').classList.contains('hidden'),true,'rematch hidden during game');
+// Stage 5.10: only show manual request after the Aiy is resolved.
+for(const id of ['aiybaiOfferPanel','aiybaiOfferNote','requestAiybai','aiybaiAnswerActions','acceptAiybai','declineAiybai'])
+ assert.match(html,new RegExp('id="'+id+'"'));
+view.players[0].status='active';view.players[0].handCount=12;
+view.players[1].status='active';view.players[1].handCount=10;
+view.players[2].status='active';view.players[2].handCount=9;
+view.players[3].status='active';view.players[3].handCount=7;
+view.lastResolution={type:'bondi',cards:[]};
+view.trick=[];view.aiybaiWindowOpen=true;view.aiybaiRequest=null;
+room.seats[1].name='Bob';room.seats[1].clientId='guest';room.seats[1].isAI=false;
+update(true);
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),false);
+assert.equal($('requestAiybai').classList.contains('hidden'),false);
+assert.match($('aiybaiOfferNote').textContent,/Bob/);
+$('requestAiybai').click();assert.equal(current.requests,1);
+view.aiybaiRequest={fromSeat:0,toSeat:1};view.aiybaiWindowOpen=false;
+update(false);
+assert.equal($('aiybaiAnswerActions').classList.contains('hidden'),false,'only target can answer');
+assert.match($('aiybaiOfferNote').textContent,/If you agree/);
+$('declineAiybai').click();assert.equal(current.answer,false);
+$('acceptAiybai').click();assert.equal(current.answer,true);
+update(true);
+assert.equal($('aiybaiAnswerActions').classList.contains('hidden'),true,'requester cannot accept for donor');
+view.aiybaiRequest=null;view.trick=[{playerIndex:0,card:{rank:'A',suit:'♠',id:'A♠'}}];
+update(true);
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),true,'no requests mid-Aiy');
 console.log('PASS room-only cumulative stats UI, HTML escaping, host-only rematch and reset');
