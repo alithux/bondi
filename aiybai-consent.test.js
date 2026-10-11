@@ -113,6 +113,8 @@ async function online(){
   // The AI acceptance timer was created with the original AI delay.
   clearTimeout(entry.resolutionTimer);
   service._settleAiybai(entry,2,true);
+  // Do not let AI auto-play while exercising subsequent manual requests.
+  service.aiDelay=10000;
   assert.equal(entry.game.players[2].status,'finished');
   assert.equal(entry.game.players[2].hand.length,0);
   assert.equal(entry.game.players[1].hand.length,before[1]+before[2]);
