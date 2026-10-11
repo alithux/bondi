@@ -241,6 +241,96 @@
     return r;
   }
 
+  // Asking for another Aiybai is consensual and is possible only after
+  // a completed Aiy, during the between-Aiy pause. Never skip an active seat.
+  function nextAiybaiSeat(game, fromSeat) {
+    if (!game || !Array.isArray(game.players) || !Number.isInteger(fromSeat)) return -1;
+    for (let step = 1; step < game.players.length; step++) {
+      const i = (fromSeat + step) % game.players.length;
+      const p = game.players[i];
+      if (p && p.status === 'active' && (Number.isInteger(p.handCount) ? p.handCount : p.hand?.length) > 0) return i;
+    }
+    return -1;
+  }
+
+  function requestAiybai(room, game, clientId, betweenAiy) {
+    const seat = room && seatForClient(room, clientId);
+    if (!seat || seat.isAI) return { ok: false, error: 'Only a seated human player can make a request.' };
+    if (!room || room.phase !== 'game' || !game || game.roundOver)
+      return { ok: false, error: 'The match is not in progress.' };
+    if (!betweenAiy || !game.lastResolution || !Array.isArray(game.trick) || game.trick.length || game.pendingFinish?.length)
+      return { ok: false, error: 'Request Aiybai only between completed Aiy.' };
+    if (game.aiybaiRequest) return { ok: false, error: 'An Aiybai request is already pending.' };
+    const requester = game.players[seat.seat];
+    if (!requester || requester.status !== 'active' || !requester.hand.length)
+      return { ok: false, error: 'Only an active player holding cards may request Aiybai.' };
+    const toSeat = nextAiybaiSeat(game, seat.seat);
+    if (toSeat < 0 || toSeat === seat.seat)
+      return { ok: false, error: 'No next active player is available.' };
+    const next = clone(game);
+    next.aiybaiRequest = { fromSeat: seat.seat, toSeat };
+    next.message = `${requester.name} has asked ${next.players[toSeat].name} for their Aiybai. Waiting for agreement.`;
+    next.log.push(next.message);
+    return { ok: true, state: next, fromSeat: seat.seat, toSeat };
+  }
+
+  // The service checks that the responding human owns the seat. AI may
+  // explicitly answer for its own seat, but no request or transfer is automatic.
+  function answerAiybai(game, answeringSeat, accept) {
+    if (!game || game.roundOver || !game.aiybaiRequest || game.trick?.length)
+      return { ok: false, error: 'There is no pending between-Aiy request.' };
+    const { fromSeat, toSeat } = game.aiybaiRequest;
+    if (answeringSeat !== toSeat) return { ok: false, error: 'Only the requested player may answer.' };
+    if (nextAiybaiSeat(game, fromSeat) !== toSeat)
+      return { ok: false, error: 'The next active player has changed.' };
+    const next = clone(game);
+    const requester = next.players[fromSeat], giver = next.players[toSeat];
+    if (!requester || requester.status !== 'active' || !requester.hand.length ||
+        !giver || giver.status !== 'active' || !giver.hand.length)
+      return { ok: false, error: 'Both players must still be active.' };
+    delete next.aiybaiRequest;
+    if (!accept) {
+      next.message = `${giver.name} declined ${requester.name}'s Aiybai request. Play continues.`;
+      next.log.push(next.message);
+      return { ok: true, state: next, accepted: false };
+    }
+    const count = giver.hand.length;
+    requester.hand.push(...giver.hand);
+    const suits = ['♣','♦','♥','♠'];
+    requester.hand.sort((a,b) => suits.indexOf(a.suit)-suits.indexOf(b.suit) || a.value-b.value);
+    giver.hand = [];
+    giver.status = 'finished';
+    if (!next.finishedOrder.includes(toSeat)) next.finishedOrder.push(toSeat);
+    // Reconcile public card memory without revealing privately-held card IDs
+    // through room snapshots or logs. Collected cards may restore void suits.
+    if (next.aiMemory) {
+      if (next.aiMemory.knownVoids) {
+        next.aiMemory.knownVoids[fromSeat] = [];
+        next.aiMemory.knownVoids[toSeat] = [];
+      }
+      if (next.aiMemory.publicHeldCards) {
+        const known = new Set([...(next.aiMemory.publicHeldCards[fromSeat]||[]),
+          ...(next.aiMemory.publicHeldCards[toSeat]||[])]);
+        next.aiMemory.publicHeldCards[fromSeat] = [...known];
+        next.aiMemory.publicHeldCards[toSeat] = [];
+      }
+    }
+    if (next.currentPlayer === toSeat) {
+      const following = nextAiybaiSeat(next, toSeat);
+      if (following >= 0) next.currentPlayer = following;
+    }
+    const remaining = next.players.filter(p => p.status === 'active' && p.hand.length);
+    if (remaining.length <= 1) {
+      next.roundOver = true;
+      next.message = remaining.length ? `${remaining[0].name} is the last player holding cards.` : 'No players remain with cards.';
+    } else {
+      next.message = `${giver.name} agreed and finished. ${requester.name} collected ${count} cards. ${next.players[next.currentPlayer].name} starts the next Aiy.`;
+    }
+    next.log.push(`Aiybai agreement: ${giver.name} gave their ${count} cards to ${requester.name} and finished.`);
+    if (next.roundOver) next.log.push(next.message);
+    return { ok: true, state: next, accepted: true };
+  }
+
   function publicPlayer(p, own) {
     return {
       id: p.id,
@@ -251,7 +341,7 @@
     };
   }
 
-  function projectGame(room, game, viewerClientId, resolutionPause = false) {
+  function projectGame(room, game, viewerClientId, resolutionPause = false, aiybaiWindowOpen = false) {
     const seat = seatForClient(room, viewerClientId);
     if (!seat) throw new Error('Viewer is not seated in this room.');
     return {
@@ -265,9 +355,11 @@
       matchStats: clone(game.matchStats || newMatchStats()),
       roundOver: !!game.roundOver,
       lastResolution: clone(game.lastResolution),
+      aiybaiRequest: game.aiybaiRequest ? clone(game.aiybaiRequest) : null,
       message: game.message,
       log: clone(game.log || []),
       resolutionPause: !!resolutionPause,
+      aiybaiWindowOpen: !!aiybaiWindowOpen,
       players: game.players.map((p, i) => publicPlayer(p, i === seat.seat))
     };
   }
@@ -331,6 +423,9 @@
     clientForSeat,
     isAISeat,
     replaceClientWithAI,
+    nextAiybaiSeat,
+    requestAiybai,
+    answerAiybai,
     validateHumanPlay,
     applyHumanPlay
   };
