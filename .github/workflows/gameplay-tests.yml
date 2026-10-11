@@ -15,6 +15,7 @@ jobs:
       - run: node home-contrast.test.js
       - run: node mobile-ux.test.js
       - run: node match-results-ui.test.js
+      - run: node aiybai-consent.test.js
       - run: node match-results.test.js
       - run: node multiplayer-ai-difficulty.test.js
       - run: node post-bondi-lead.test.js
