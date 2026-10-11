@@ -105,6 +105,8 @@
    removeAI(seat){this._send({type:'ACTION',action:'REMOVE_AI',seat:Number(seat)});}
    startGame(){this._send({type:'ACTION',action:'START'});}
    requestRematch(){this._send({type:'ACTION',action:'REMATCH'});}
+   requestAiybai(){this._send({type:'ACTION',action:'REQUEST_AIYBAI'});}
+   answerAiybai(accept){this._send({type:'ACTION',action:'ANSWER_AIYBAI',accept:accept===true});}
    playCard(cardId){this._send({type:'ACTION',action:'PLAY',cardId:String(cardId)});}
    leave(notify=true){
      clearTimeout(this.reconnectTimer);this.reconnectTimer=null;this.stopped=true;
