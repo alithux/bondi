@@ -341,7 +341,7 @@
     };
   }
 
-  function projectGame(room, game, viewerClientId, resolutionPause = false) {
+  function projectGame(room, game, viewerClientId, resolutionPause = false, aiybaiWindowOpen = false) {
     const seat = seatForClient(room, viewerClientId);
     if (!seat) throw new Error('Viewer is not seated in this room.');
     return {
@@ -359,6 +359,7 @@
       message: game.message,
       log: clone(game.log || []),
       resolutionPause: !!resolutionPause,
+      aiybaiWindowOpen: !!aiybaiWindowOpen,
       players: game.players.map((p, i) => publicPlayer(p, i === seat.seat))
     };
   }
