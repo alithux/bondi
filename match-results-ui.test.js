@@ -104,4 +104,17 @@ assert.equal($('aiybaiAnswerActions').classList.contains('hidden'),true,'request
 view.aiybaiRequest=null;view.trick=[{playerIndex:0,card:{rank:'A',suit:'♠',id:'A♠'}}];
 update(true);
 assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),true,'no requests mid-Aiy');
-console.log('PASS room-only cumulative stats UI, HTML escaping, host-only rematch and reset');
+// The two-player endgame previously cleared these cards instantly whenever
+// the next leader was AI; they must remain visible during the one-second review.
+view.trick=[];view.currentPlayer=2;view.resolutionPause=true;
+view.lastResolution={type:'normal',leadSuit:'♠',cards:[
+ {playerIndex:2,card:{id:'9♠',rank:'9',suit:'♠',value:9}},
+ {playerIndex:0,card:{id:'6♠',rank:'6',suit:'♠',value:6}}]};
+view.players[1].status='finished';view.players[3].status='finished';
+update(true);
+assert.match($('aiy').innerHTML,/9♠/,'AI card stays visible after Aiy resolution');
+assert.match($('aiy').innerHTML,/6♠/,'human card stays visible after Aiy resolution');
+assert.match($('handTurnStatus').textContent,/next turn in a moment/);
+view.resolutionPause=false;update(true);
+assert.doesNotMatch($('aiy').innerHTML,/9♠/,'old cards clear when review has ended');
+console.log('PASS match results, Aiybai UI and two-player resolved-Aiy card visibility');
