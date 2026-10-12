@@ -23,4 +23,5 @@ jobs:
       - run: node post-bondi-lead.test.js
       - run: node stage56.test.js
       - run: node multiplayer-lobby-refresh.test.js
+      - run: node online-reconnect.test.js
       - run: node online-server/room-service.test.js
