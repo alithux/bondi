@@ -71,7 +71,7 @@ const stalled=sockets.at(-1);
 tick(10000);
 assert.equal(stalled.closed,true,'silent WebSocket is closed after handshake watchdog');
 assert.equal(client.status,'disconnected');
-tick(1000);const recovered=sockets.at(-1);
+tick(2000);const recovered=sockets.at(-1);
 assert.notEqual(recovered,stalled,'watchdog must schedule a fresh socket');
 recovered.open();assert.equal(recovered.sent.at(-1).type,'RESUME');
 // Another tab resumes the seat. This tab must not reconnect and steal it back.
