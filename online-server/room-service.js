@@ -187,23 +187,24 @@ class RoomService {
     entry.aiybaiWindowOpen=!!(resolved&&!entry.game.roundOver);
     clearTimeout(entry.resolutionTimer);
     entry.resolutionTimer=null;
-    // AI already waits aiDelay=1000ms before its move. Give a human who
-    // leads the next Aiy the same 1000ms to see the resolved cards, without
-    // stacking delays on top of the AI's existing thinking delay.
-    const humanLead=entry.aiybaiWindowOpen&&this.resolutionDelay>0&&!Core.isAISeat(entry.room,entry.game.currentPlayer);
-    entry.resolutionPause=humanLead;
-    entry.pauseUntil=humanLead?Date.now()+this.resolutionDelay:0;
+    // Hold the completed cards on every player's screen for one second,
+    // including when an AI wins the Aiy or only two players remain. The
+    // following AI lead is immediate when this review ends, so the normal
+    // 1000ms AI thinking timer is not stacked on top of the review.
+    const reviewAiy=entry.aiybaiWindowOpen&&this.resolutionDelay>0;
+    entry.resolutionPause=reviewAiy;
+    entry.pauseUntil=reviewAiy?Date.now()+this.resolutionDelay:0;
     this._broadcast(entry);
-    if(humanLead){
+    if(reviewAiy){
       entry.resolutionTimer=setTimeout(()=>{
         if(!this.rooms.has(entry.room.code)||entry.game?.aiybaiRequest)return;
         entry.resolutionTimer=null;
         entry.resolutionPause=false;entry.pauseUntil=0;
-        entry.revision++;this._broadcast(entry);this._schedule(entry);
+        entry.revision++;this._broadcast(entry);this._schedule(entry,0);
       },this.resolutionDelay);
     }else this._schedule(entry);
   }
-  _schedule(entry){
+  _schedule(entry,delay=this.aiDelay){
     clearTimeout(entry.aiTimer);
     if(!entry.game||entry.game.roundOver||entry.resolutionPause)return;
     const i=entry.game.currentPlayer;
@@ -222,7 +223,7 @@ class RoomService {
       if(tactic) r.state.log.splice(before.log.length,0,
         `AI lead insight · ${before.players[seat].name} (Seat ${seat+1}) · ${card.suit}: ${tactic.explanation} (Seat ${tactic.nextSeat}).`);
       entry.game=r.state;this._afterPlay(entry,before);
-    },this.aiDelay);
+    },Math.max(0,delay));
   }
   _broadcast(entry){
     const room=visibleRoom(entry.room);
