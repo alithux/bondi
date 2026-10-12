@@ -59,6 +59,24 @@ const total=()=>mp.game.players.reduce((n,p)=>n+p.hand.length,0);
   assert.equal(mp.game.aiybaiRequest,undefined);
   assert.equal(Core.nextAiybaiSeat(mp.view,0),2);
   assert.deepEqual(errors,[],'no same-browser errors');
-  console.log('PASS same-browser Aiybai request, AI acceptance, 52 cards, hidden hand and next active');
+  // After a two-player Aiy, the next AI leader must also respect the
+  // one-second review, without waiting an additional aiDelay afterward.
+  mp.game.currentPlayer=2;
+  mp.game.players[3].hand=[];mp.game.players[3].status='finished';
+  mp.game.trick=[];mp.game.lastResolution={type:'normal',leadSuit:'♠',cards:[
+    {playerIndex:2,card:{id:'9♠',rank:'9',suit:'♠',value:9}},
+    {playerIndex:0,card:{id:'6♠',rank:'6',suit:'♠',value:6}}]};
+  const previousAI=structuredClone(mp.game);
+  previousAI.trick=structuredClone(mp.game.lastResolution.cards);
+  mp._afterPlay(previousAI);
+  assert.equal(mp.resolutionPause,true,'two-player Aiy stays visible when AI leads');
+  assert.equal(mp.view.resolutionPause,true);
+  assert.equal(mp.view.lastResolution.cards.length,2);
+  assert.equal(mp.aiTimer,null,'next AI lead is not queued during review');
+  await new Promise(r=>setTimeout(r,1130));
+  assert.equal(mp.resolutionPause,false);
+  assert.equal(mp.game.trick.length,1,'AI leads just after the 1-second review');
+  assert.deepEqual(errors,[],'no local play errors');
+  console.log('PASS same-browser Aiybai consent and 1-second two-player AI-lead review');
  }finally{mp.leave(false);}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
