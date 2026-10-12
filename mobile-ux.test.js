@@ -11,7 +11,7 @@ for(const id of ['handTurnStatus','inviteLink','inviteLinkField','hand','play','
 assert.match(html,/\.card\{flex-basis:68px;width:68px;min-width:68px;height:94px/,'cards are larger on phones');
 assert.match(html,/:focus-visible\{outline:3px solid var\(--gold\)/,'keyboard focus remains visible');
 assert.match(html,/\.room-total-row span\{font-size:\.87rem/,'results have readable labels');
-assert.match(html,/Stage 5\.10\.1 · Aiy without automatic pauses/);
+assert.match(html,/Stage 5\.10\.2 · Balanced 650ms Aiy pacing/);
 
 class ClassList{
  constructor(){this.values=new Set(['hidden']);}
@@ -83,7 +83,7 @@ assert.equal($('inviteLinkField').classList.contains('hidden'),false);
  assert.match($('handTurnStatus').textContent,/Waiting for/);
  assert.equal($('play').disabled,true);
  view.currentPlayer=0;view.resolutionPause=true;update();
- assert.match($('handTurnStatus').textContent,/އަތް resolving/);
+ assert.match($('handTurnStatus').textContent,/އަތް complete — next turn in a moment/);
  assert.equal($('handTurnStatus').classList.contains('paused'),true);
  // Turn display and selected-card controls are read-only while the Aiy resolves.
  console.log('PASS Stage 5.9 phone cards, selection, turn status, reconnection and invite sharing');

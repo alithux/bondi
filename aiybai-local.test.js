@@ -23,7 +23,7 @@ const ctx={window:root,localStorage:storage,setTimeout,clearTimeout,setInterval:
 vm.runInNewContext(fs.readFileSync(__dirname+'/multiplayer-browser.js','utf8'),ctx,{filename:'multiplayer-browser.js'});
 const MultiplayerClient=root.BondiMultiplayer.MultiplayerClient;
 const errors=[];
-const mp=new MultiplayerClient({engine:Engine,aiDelay:1,resolutionDelay:5000,onUpdate(){},onError:e=>errors.push(e)});
+const mp=new MultiplayerClient({engine:Engine,aiDelay:1,resolutionDelay:650,onUpdate(){},onError:e=>errors.push(e)});
 const total=()=>mp.game.players.reduce((n,p)=>n+p.hand.length,0);
 (async()=>{
  try{
@@ -35,7 +35,13 @@ const total=()=>mp.game.players.reduce((n,p)=>n+p.hand.length,0);
   clearTimeout(mp.aiTimer);
   mp.game.lastResolution={type:'normal',leadSuit:'♣',cards:[],winnerIndex:2};
   mp.game.trick=[];mp.game.currentPlayer=0;mp.resolutionPause=false;mp.aiybaiWindowOpen=true;mp.pauseUntil=0;
-  mp._commitSharedGame();
+  // Model a real completed Aiy transition into a human lead.
+  const beforeResolution=structuredClone(mp.game);
+  beforeResolution.trick=[{playerIndex:1,card:mp.game.players[1].hand[0]}];
+  mp._afterPlay(beforeResolution);
+  assert.equal(mp.resolutionPause,true,'human leader gets the same 650ms as AI');
+  assert(mp.pauseUntil>=Date.now()+500&&mp.pauseUntil<=Date.now()+750,'human pause has a 650ms deadline');
+  assert.equal(mp.aiybaiWindowOpen,true,'request stays available during pause');
   const before=mp.game.players.map(p=>p.hand.length);
   mp.requestAiybai();
   assert.deepEqual(JSON.parse(JSON.stringify(mp.game.aiybaiRequest)),{fromSeat:0,toSeat:1});

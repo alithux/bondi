@@ -158,7 +158,7 @@
   }
 
   class MultiplayerClient {
-    constructor({ engine, onUpdate, onError, aiDifficulty = 'hard', aiDelay = 650, resolutionDelay = 5000 } = {}) {
+    constructor({ engine, onUpdate, onError, aiDifficulty = 'hard', aiDelay = 650, resolutionDelay = 650 } = {}) {
       if (!engine) throw new Error('BONDI engine is required.');
       this.engine = engine;
       this.onUpdate = typeof onUpdate === 'function' ? onUpdate : () => {};
@@ -260,7 +260,6 @@
         if (this.resolutionPause && this.pauseUntil && Date.now() >= this.pauseUntil && this._isActiveTab()) {
           if (this.game?.aiybaiRequest) { this._answerSharedAiybai(this.game.aiybaiRequest.toSeat, false); return true; }
           this.resolutionPause = false;
-          this.aiybaiWindowOpen = false;
           this.pauseUntil = 0;
           this._commitSharedGame();
           this._broadcastViews();
@@ -273,7 +272,6 @@
       if (this.resolutionPause && this.pauseUntil && Date.now() >= this.pauseUntil && this._isActiveTab()) {
           if (this.game?.aiybaiRequest) { this._answerSharedAiybai(this.game.aiybaiRequest.toSeat, false); return true; }
         this.resolutionPause = false;
-        this.aiybaiWindowOpen = false;
         this.pauseUntil = 0;
         this._commitSharedGame();
         this._broadcastViews();
@@ -430,11 +428,23 @@
       const resolved = Core.recordAiyResolution(before, this.game);
       if (this.game.roundOver) this.room = Core.archiveMatch(this.room, this.game);
       this.aiybaiWindowOpen = !!(resolved && !this.game.roundOver);
-      this.resolutionPause = false;this.pauseUntil = 0;
       clearTimeout(this.resolutionTimer);
+      // AI already waits aiDelay (650ms). Only delay human leads here.
+      const humanLead = this.aiybaiWindowOpen && this.resolutionDelay>0 && !Core.isAISeat(this.room, this.game.currentPlayer);
+      this.resolutionPause = humanLead;
+      this.pauseUntil = humanLead ? Date.now()+this.resolutionDelay : 0;
       this._commitSharedGame();
       this._broadcastViews();
-      this._scheduleNext();
+      if (humanLead) {
+        const expected = this.sharedRevision;
+        this.resolutionTimer = setTimeout(() => {
+          const latest = sharedGameRead(this.room?.code);
+          if (latest && latest.revision !== expected) { this._syncSharedGame(true); return; }
+          if (this.game?.aiybaiRequest) return;
+          this.resolutionPause = false;this.pauseUntil = 0;
+          this._commitSharedGame();this._broadcastViews();this._scheduleNext();
+        }, this.resolutionDelay);
+      } else this._scheduleNext();
     }
 
     _scheduleNext() {
