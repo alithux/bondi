@@ -185,8 +185,23 @@ class RoomService {
     // The new leader may request Aiybai at their own pace until they
     // either start the next Aiy or initiate one consensual request.
     entry.aiybaiWindowOpen=!!(resolved&&!entry.game.roundOver);
-    entry.resolutionPause=false;entry.pauseUntil=0;
-    this._broadcast(entry);this._schedule(entry);
+    clearTimeout(entry.resolutionTimer);
+    entry.resolutionTimer=null;
+    // AI already waits aiDelay=650ms before its move. Give a human who
+    // leads the next Aiy the same 650ms to see the resolved cards, without
+    // stacking delays on top of the AI's existing thinking delay.
+    const humanLead=entry.aiybaiWindowOpen&&!Core.isAISeat(entry.room,entry.game.currentPlayer);
+    entry.resolutionPause=humanLead;
+    entry.pauseUntil=humanLead?Date.now()+650:0;
+    this._broadcast(entry);
+    if(humanLead){
+      entry.resolutionTimer=setTimeout(()=>{
+        if(!this.rooms.has(entry.room.code)||entry.game?.aiybaiRequest)return;
+        entry.resolutionTimer=null;
+        entry.resolutionPause=false;entry.pauseUntil=0;
+        entry.revision++;this._broadcast(entry);this._schedule(entry);
+      },650);
+    }else this._schedule(entry);
   }
   _schedule(entry){
     clearTimeout(entry.aiTimer);
