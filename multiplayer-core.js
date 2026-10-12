@@ -242,7 +242,7 @@
   }
 
   // Asking for another Aiybai is consensual and is possible only after
-  // a completed Aiy, during the between-Aiy pause. Never skip an active seat.
+  // a completed Aiy, before its leader plays the next card. Never skip an active seat.
   function nextAiybaiSeat(game, fromSeat) {
     if (!game || !Array.isArray(game.players) || !Number.isInteger(fromSeat)) return -1;
     for (let step = 1; step < game.players.length; step++) {
@@ -259,7 +259,9 @@
     if (!room || room.phase !== 'game' || !game || game.roundOver)
       return { ok: false, error: 'The match is not in progress.' };
     if (!betweenAiy || !game.lastResolution || !Array.isArray(game.trick) || game.trick.length || game.pendingFinish?.length)
-      return { ok: false, error: 'Request Aiybai only between completed Aiy.' };
+      return { ok: false, error: 'Request Aiybai before playing the first card of your next Aiy.' };
+    if (game.currentPlayer !== seat.seat)
+      return { ok: false, error: 'Only the player leading the next Aiy can request Aiybai.' };
     if (game.aiybaiRequest) return { ok: false, error: 'An Aiybai request is already pending.' };
     const requester = game.players[seat.seat];
     if (!requester || requester.status !== 'active' || !requester.hand.length)
