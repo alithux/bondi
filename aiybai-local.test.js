@@ -23,7 +23,7 @@ const ctx={window:root,localStorage:storage,setTimeout,clearTimeout,setInterval:
 vm.runInNewContext(fs.readFileSync(__dirname+'/multiplayer-browser.js','utf8'),ctx,{filename:'multiplayer-browser.js'});
 const MultiplayerClient=root.BondiMultiplayer.MultiplayerClient;
 const errors=[];
-const mp=new MultiplayerClient({engine:Engine,aiDelay:1,resolutionDelay:650,onUpdate(){},onError:e=>errors.push(e)});
+const mp=new MultiplayerClient({engine:Engine,aiDelay:1,resolutionDelay:1000,onUpdate(){},onError:e=>errors.push(e)});
 const total=()=>mp.game.players.reduce((n,p)=>n+p.hand.length,0);
 (async()=>{
  try{
@@ -39,8 +39,8 @@ const total=()=>mp.game.players.reduce((n,p)=>n+p.hand.length,0);
   const beforeResolution=structuredClone(mp.game);
   beforeResolution.trick=[{playerIndex:1,card:mp.game.players[1].hand[0]}];
   mp._afterPlay(beforeResolution);
-  assert.equal(mp.resolutionPause,true,'human leader gets the same 650ms as AI');
-  assert(mp.pauseUntil>=Date.now()+500&&mp.pauseUntil<=Date.now()+750,'human pause has a 650ms deadline');
+  assert.equal(mp.resolutionPause,true,'human leader gets the same 1000ms as AI');
+  assert(mp.pauseUntil>=Date.now()+850&&mp.pauseUntil<=Date.now()+1150,'human pause has a 1-second deadline');
   assert.equal(mp.aiybaiWindowOpen,true,'request stays available during pause');
   const before=mp.game.players.map(p=>p.hand.length);
   mp.requestAiybai();
