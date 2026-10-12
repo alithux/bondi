@@ -22,7 +22,7 @@ function translateFinishLogs(log,room) {
   return log.map(x=>x.replace(/\bPlayer ([1-4]) has finished\./g,(_,n)=>`${room.seats[Number(n)-1].name} (Seat ${n}) has finished.`));
 }
 class RoomService {
-  constructor({aiDelay=650,resolutionDelay=5000,graceMs=SESSION_GRACE_MS, maxRooms=100,logger=()=>{}}={}) {
+  constructor({aiDelay=650,resolutionDelay=650,graceMs=SESSION_GRACE_MS, maxRooms=100,logger=()=>{}}={}) {
     this.rooms=new Map();this.sessions=new Map();this.aiDelay=aiDelay;this.resolutionDelay=resolutionDelay;this.graceMs=graceMs;this.maxRooms=maxRooms;this.logger=logger;
   }
   attach(peer) {
@@ -190,9 +190,9 @@ class RoomService {
     // AI already waits aiDelay=650ms before its move. Give a human who
     // leads the next Aiy the same 650ms to see the resolved cards, without
     // stacking delays on top of the AI's existing thinking delay.
-    const humanLead=entry.aiybaiWindowOpen&&!Core.isAISeat(entry.room,entry.game.currentPlayer);
+    const humanLead=entry.aiybaiWindowOpen&&this.resolutionDelay>0&&!Core.isAISeat(entry.room,entry.game.currentPlayer);
     entry.resolutionPause=humanLead;
-    entry.pauseUntil=humanLead?Date.now()+650:0;
+    entry.pauseUntil=humanLead?Date.now()+this.resolutionDelay:0;
     this._broadcast(entry);
     if(humanLead){
       entry.resolutionTimer=setTimeout(()=>{
@@ -200,7 +200,7 @@ class RoomService {
         entry.resolutionTimer=null;
         entry.resolutionPause=false;entry.pauseUntil=0;
         entry.revision++;this._broadcast(entry);this._schedule(entry);
-      },650);
+      },this.resolutionDelay);
     }else this._schedule(entry);
   }
   _schedule(entry){
