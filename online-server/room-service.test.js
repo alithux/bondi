@@ -74,6 +74,42 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   assert.equal(r.latest('SNAPSHOT').room.seats[1].connected,true);
   s.shutdown();
  });
+ await test('Stage 5.11 reconnects an interrupted game to its exact seat and private Aiybai',async()=>{
+   const s=new RoomService({graceMs:250,aiDelay:10000,resolutionDelay:0});
+   try{
+     const h=create(s,'PC'),code=h.latest('WELCOME').code,g=join(s,code,'Phone');
+     cmd(h,'ADD_AI');cmd(h,'ADD_AI');cmd(h,'READY',{ready:true});cmd(g,'READY',{ready:true});cmd(h,'START');
+     const original=g.latest('WELCOME'),entry=s.rooms.get(code);
+     const hand=entry.game.players[1].hand.map(c=>c.id);
+     const originalRevision=h.latest('SNAPSHOT').revision;
+     g.close();
+     let offline=h.latest('SNAPSHOT');
+     assert.equal(offline.room.seats[1].connected,false);
+     assert.equal(offline.room.seats[1].isAI,false,'no premature AI takeover');
+     assert.equal(offline.room.seats[1].reconnectUntil> Date.now(),true);
+     assert(offline.revision>originalRevision,'opponents receive new disconnect state');
+     const resumed=peer(s);resumed.write({type:'RESUME',code,token:original.token});
+     const snap=resumed.latest('SNAPSHOT');
+     assert.equal(snap.clientId,original.clientId);
+     assert.equal(snap.seat,1);
+     assert.equal(snap.view.players[1].hand.length,13);
+     assert.deepEqual(snap.view.players[1].hand.map(c=>c.id),hand,'private hand is preserved');
+     assert.equal(snap.view.players[0].hand.length,0,'other players cards remain hidden');
+     assert.equal(snap.room.seats[1].connected,true);
+     assert.equal(snap.room.seats[1].reconnectUntil,undefined);
+     assert.equal(snap.room.seats[1].aiTakeover,undefined);
+     assert.equal(s.sessions.size,2,'no duplicate session was created');
+     const second=peer(s);second.write({type:'RESUME',code,token:original.token});
+     assert.equal(resumed.latest('SESSION_REPLACED').type,'SESSION_REPLACED');
+     assert.equal(resumed.closed,true,'old tab was superseded');
+     assert.equal(second.latest('SNAPSHOT').seat,1);
+     assert.equal(s.rooms.get(code).room.seats[1].connected,true,'stale socket close did not disconnect seat');
+     cmd(resumed,'PLAY',{cardId:hand[0]});
+     assert.match(resumed.latest('ERROR').message,/reconnect|join/i,'old socket cannot make moves');
+     await wait(280);
+     assert.equal(s.rooms.get(code).room.seats[1].isAI,false,'cancelled grace timeout cannot take seat over');
+   }finally{s.shutdown();}
+ });
  await test('Stage 5.2 rejects duplicate online identities without consuming a seat',async()=>{
   const s=new RoomService({graceMs:200});
   const h=create(s,'Ali'),code=h.latest('WELCOME').code;

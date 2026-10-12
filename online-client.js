@@ -1,4 +1,4 @@
-/* BONDI Stage 5.3: server-authoritative online client with same-room rematches. Does not contain, run or
+/* BONDI Stage 5.11: server-authoritative online client with same-room rematches. Does not contain, run or
    receive other players' hidden Aiybai. Network failures are visible. */
 (function(root){
  'use strict';
@@ -23,7 +23,7 @@
      this.onError=typeof onError==='function'?onError:()=>{};
      this.serverUrl=serverWebSocketURL(serverUrl);
      this.room=null;this.view=null;this.clientId=null;this.seat=null;this.isHost=false;
-     this.ws=null;this.intent=null;this.reconnectTimer=null;this.reconnectTries=0;
+     this.ws=null;this.intent=null;this.reconnectTimer=null;this.handshakeTimer=null;this.reconnectTries=0;
      this.stopped=true;this.generation=0;this.session=null;this.status='idle';
      this.storageKey='bondi:online:session:'+this.serverUrl;
      try{const raw=root.sessionStorage?.getItem(this.storageKey);if(raw)this.session=JSON.parse(raw);}catch(_){}
@@ -33,18 +33,37 @@
    _send(value){if(!this.ws||this.ws.readyState!==1){this._error('Not connected to the online server.');return false;}
      this.ws.send(JSON.stringify(value));return true;}
    _storeSession(){try{if(this.session)root.sessionStorage?.setItem(this.storageKey,JSON.stringify(this.session));else root.sessionStorage?.removeItem(this.storageKey);}catch(_){}}
+   _retry(){
+     clearTimeout(this.handshakeTimer);this.handshakeTimer=null;
+     if(this.stopped)return;
+     this.status='disconnected';this._emit();
+     if(++this.reconnectTries>12){
+       this.status='failed';this.stopped=true;this._emit();
+       this._error('Could not reconnect. Tap Reconnect now to try again.');return;
+     }
+     const delay=Math.min(12000,500*2**Math.min(this.reconnectTries,5));
+     clearTimeout(this.reconnectTimer);
+     this.reconnectTimer=setTimeout(()=>this._open(),delay);
+   }
    _open(){
      clearTimeout(this.reconnectTimer);
      if(this.stopped)return;
      const generation=++this.generation;
-     this.status=this.reconnectTries?'reconnecting':'connecting';
+     this.status=(this.session?.token||this.reconnectTries)?'reconnecting':'connecting';
      this._emit();
      let ws;
-     try{ws=new root.WebSocket(this.serverUrl);}catch(e){this._error(e);return;}
+     try{ws=new root.WebSocket(this.serverUrl);}catch(e){this._error(e);this._retry();return;}
      this.ws=ws;
+     // Phone networks can leave a WebSocket silently stuck during connection.
+     clearTimeout(this.handshakeTimer);
+     this.handshakeTimer=setTimeout(()=>{
+       if(generation!==this.generation||this.stopped||this.status==='connected')return;
+       this._error('Connection timed out. Trying to reconnect…');
+       try{ws.close();}catch(_){this._retry();}
+     },10000);
      ws.addEventListener('open',()=>{
        if(generation!==this.generation)return;
-       this.reconnectTries=0;this.status=this.session?.token?'reconnecting':'connecting';this._emit();
+       this.status=this.session?.token?'reconnecting':'connecting';this._emit();
        if(this.session?.code&&this.session.token){this._send({type:'RESUME',code:this.session.code,token:this.session.token});}
        else if(this.intent){this._send(this.intent);}
      });
@@ -53,15 +72,26 @@
        let msg;try{msg=JSON.parse(evt.data);}catch(_){return;}
        if(msg.type==='WELCOME'){
          this.session={code:msg.code,token:msg.token,clientId:msg.clientId};
-         this.clientId=msg.clientId;this._storeSession();this.status='connected';this._emit();
+         this.clientId=msg.clientId;this._storeSession();
        }else if(msg.type==='SNAPSHOT'){
          this.room=msg.room;this.view=msg.view;this.clientId=msg.clientId;
-         this.seat=msg.seat;this.isHost=!!msg.isHost;this.status='connected';this._emit();
+         this.seat=msg.seat;this.isHost=!!msg.isHost;
+         clearTimeout(this.handshakeTimer);this.handshakeTimer=null;
+         this.reconnectTries=0;this.status='connected';this._emit();
        }else if(msg.type==='ERROR'){
          this._error(msg.message);
          if(/session expired|seat is no longer available/i.test(msg.message||'')){
-           this.session=null;this._storeSession();this.stopped=true;this.status='expired';this._emit();ws.close();
+           this.session=null;this._storeSession();this.stopped=true;
+           clearTimeout(this.handshakeTimer);this.handshakeTimer=null;
+           this.status='expired';this._emit();ws.close();
          }
+        }else if(msg.type==='SESSION_REPLACED'){
+         // Another connection recovered this seat; the old tab must not
+         // reconnect and steal it back.
+         this.stopped=true;this.session=null;this._storeSession();
+         this.room=null;this.view=null;this.clientId=null;this.seat=null;
+         clearTimeout(this.handshakeTimer);this.handshakeTimer=null;
+         this.status='replaced';this._emit();ws.close();
        }else if(msg.type==='ROOM_CLOSED'||msg.type==='LEFT'){
          this.session=null;this._storeSession();this.room=null;this.view=null;
          this.clientId=null;this.seat=null;this.isHost=false;this.stopped=true;
@@ -72,11 +102,8 @@
      ws.addEventListener('close',()=>{
        if(generation!==this.generation)return;
        this.ws=null;
-       if(this.stopped)return;
-       this.status='disconnected';this._emit();
-       if(++this.reconnectTries>12){this.status='failed';this.stopped=true;this._emit();this._error('Could not reconnect. Tap Reconnect now to try again.');return;}
-       const delay=Math.min(12000,500*2**Math.min(this.reconnectTries,5));
-       this.reconnectTimer=setTimeout(()=>this._open(),delay);
+       clearTimeout(this.handshakeTimer);this.handshakeTimer=null;
+       this._retry();
      });
      ws.addEventListener('error',()=>{if(generation===this.generation)this._error('Cannot reach the online server. Check its address and whether it is running.');});
    }
@@ -109,7 +136,8 @@
    answerAiybai(accept){this._send({type:'ACTION',action:'ANSWER_AIYBAI',accept:accept===true});}
    playCard(cardId){this._send({type:'ACTION',action:'PLAY',cardId:String(cardId)});}
    leave(notify=true){
-     clearTimeout(this.reconnectTimer);this.reconnectTimer=null;this.stopped=true;
+     clearTimeout(this.reconnectTimer);this.reconnectTimer=null;
+     clearTimeout(this.handshakeTimer);this.handshakeTimer=null;this.stopped=true;
      const oldWs=this.ws;
      if(notify&&oldWs?.readyState===1){try{oldWs.send(JSON.stringify({type:'ACTION',action:'LEAVE'}));}catch(_){}}
      this.generation++;this.ws=null;

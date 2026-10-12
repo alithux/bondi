@@ -3,7 +3,7 @@ const crypto = require('node:crypto');
 const Core = require('../multiplayer-core.js');
 const Engine = require('./load-engine.js');
 const CODE_ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const SESSION_GRACE_MS=60000;
+const SESSION_GRACE_MS=120000;
 const IDLE_ROOM_MS=20*60*1000;
 
 function cleanCode(value) { return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6); }
@@ -77,13 +77,23 @@ class RoomService {
     const token=String(msg.token||''),session=this.sessions.get(token);
     if(!/^[a-f0-9]{64}$/.test(token)||!session||session.roomCode!==cleanCode(msg.code))throw Error('Session expired. Please join again.');
     const entry=this.rooms.get(session.roomCode);
-    if(!entry||!Core.seatForClient(entry.room,session.clientId))throw Error('Your seat is no longer available.');
+    const oldSeat=entry&&Core.seatForClient(entry.room,session.clientId);
+    if(!oldSeat||oldSeat.aiTakeover)throw Error('Your seat is no longer available.');
+    if(oldSeat.reconnectUntil&&Date.now()>oldSeat.reconnectUntil)
+      throw Error('Session expired. The reconnection window has ended.');
     if(session.disconnectTimer){clearTimeout(session.disconnectTimer);session.disconnectTimer=null;}
-    if(session.peer&&session.peer!==peer){session.peer._bondiv2.token=null;session.peer.close(1000);}
+    if(session.peer&&session.peer!==peer){
+      // A resumed identity has exactly one active connection. Tell the old
+      // tab explicitly, so it does not loop forever and steal the seat back.
+      session.peer._bondiv2.token=null;
+      if(!session.peer.closed)session.peer.sendJSON({type:'SESSION_REPLACED'});
+      session.peer.close(1000);
+    }
     session.peer=peer;peer._bondiv2.token=token;session.lastSeen=Date.now();
     if(entry.room.phase==='lobby')entry.room=Core.applyLobbyAction(entry.room,{type:'RECONNECT',clientId:session.clientId});
     else {const seat=Core.seatForClient(entry.room,session.clientId);if(seat)seat.connected=true;}
     const resumedSeat=Core.seatForClient(entry.room,session.clientId);if(resumedSeat)delete resumedSeat.reconnectUntil;
+    entry.revision++;entry.updatedAt=Date.now();
     peer.sendJSON({type:'WELCOME',code:entry.room.code,clientId:session.clientId,token});
     this._broadcast(entry);
   }
@@ -291,6 +301,7 @@ class RoomService {
     else {const seat=Core.seatForClient(entry.room,s.clientId);if(seat)seat.connected=false;}
     const seat=Core.seatForClient(entry.room,s.clientId);
     if(seat)seat.reconnectUntil=Date.now()+this.graceMs;
+    entry.revision++;entry.updatedAt=Date.now();
     this._broadcast(entry);
     s.disconnectTimer=setTimeout(()=>{
       const latest=this.rooms.get(s.roomCode);
