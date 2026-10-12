@@ -73,7 +73,7 @@ view.roundOver=false;
 update(true);
 assert.equal($('matchResultsPanel').classList.contains('hidden'),true,'results hidden during game');
 assert.equal($('rematchPanel').classList.contains('hidden'),true,'rematch hidden during game');
-// Stage 5.10: only show manual request after the Aiy is resolved.
+// Stage 5.10.1: only the next leader may request before playing a card.
 for(const id of ['aiybaiOfferPanel','aiybaiOfferNote','requestAiybai','aiybaiAnswerActions','acceptAiybai','declineAiybai'])
  assert.match(html,new RegExp('id="'+id+'"'));
 view.players[0].status='active';view.players[0].handCount=12;
@@ -81,12 +81,17 @@ view.players[1].status='active';view.players[1].handCount=10;
 view.players[2].status='active';view.players[2].handCount=9;
 view.players[3].status='active';view.players[3].handCount=7;
 view.lastResolution={type:'bondi',cards:[]};
-view.trick=[];view.aiybaiWindowOpen=true;view.aiybaiRequest=null;
+view.trick=[];view.currentPlayer=0;view.resolutionPause=false;view.aiybaiWindowOpen=true;view.aiybaiRequest=null;
 room.seats[1].name='Bob';room.seats[1].clientId='guest';room.seats[1].isAI=false;
 update(true);
 assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),false);
 assert.equal($('requestAiybai').classList.contains('hidden'),false);
 assert.match($('aiybaiOfferNote').textContent,/Bob/);
+view.currentPlayer=2;
+update(true);
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),true,'non-leader cannot interrupt Aiy');
+view.currentPlayer=0;
+update(true);
 $('requestAiybai').click();assert.equal(current.requests,1);
 view.aiybaiRequest={fromSeat:0,toSeat:1};view.aiybaiWindowOpen=false;
 update(false);
