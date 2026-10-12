@@ -158,7 +158,7 @@
   }
 
   class MultiplayerClient {
-    constructor({ engine, onUpdate, onError, aiDifficulty = 'hard', aiDelay = 650, resolutionDelay = 650 } = {}) {
+    constructor({ engine, onUpdate, onError, aiDifficulty = 'hard', aiDelay = 1000, resolutionDelay = 1000 } = {}) {
       if (!engine) throw new Error('BONDI engine is required.');
       this.engine = engine;
       this.onUpdate = typeof onUpdate === 'function' ? onUpdate : () => {};
@@ -429,7 +429,7 @@
       if (this.game.roundOver) this.room = Core.archiveMatch(this.room, this.game);
       this.aiybaiWindowOpen = !!(resolved && !this.game.roundOver);
       clearTimeout(this.resolutionTimer);
-      // AI already waits aiDelay (650ms). Only delay human leads here.
+      // AI already waits aiDelay (1000ms). Only delay human leads here.
       const humanLead = this.aiybaiWindowOpen && this.resolutionDelay>0 && !Core.isAISeat(this.room, this.game.currentPlayer);
       this.resolutionPause = humanLead;
       this.pauseUntil = humanLead ? Date.now()+this.resolutionDelay : 0;
