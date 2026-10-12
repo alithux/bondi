@@ -136,7 +136,7 @@ class RoomService {
     }
     if(entry.room.phase==='game'&&action==='REQUEST_AIYBAI'){
       const r=Core.requestAiybai(entry.room,entry.game,s.clientId,
-        entry.resolutionPause&&entry.aiybaiWindowOpen);
+        entry.aiybaiWindowOpen);
       if(!r.ok)throw Error(r.error);
       entry.game=r.state;
       entry.aiybaiWindowOpen=false;
@@ -169,37 +169,24 @@ class RoomService {
     const result=Core.answerAiybai(entry.game,answerSeat,accepted);
     if(!result.ok){this.logger('Aiybai answer rejected',result.error);return;}
     clearTimeout(entry.resolutionTimer);
+    entry.resolutionTimer=null;
     entry.game=result.state;
     entry.aiybaiWindowOpen=false;
-    if(entry.game.roundOver){
-      entry.room=Core.archiveMatch(entry.room,entry.game);
-      entry.resolutionPause=false;entry.pauseUntil=0;entry.revision++;this._broadcast(entry);return;
-    }
-    // Only one offer per between-Aiy window. Both outcomes resume play.
-    entry.resolutionPause=true;entry.pauseUntil=Date.now()+800;
-    entry.revision++;this._broadcast(entry);
-    entry.resolutionTimer=setTimeout(()=>{
-      if(!this.rooms.has(entry.room.code))return;
-      entry.resolutionPause=false;entry.pauseUntil=0;entry.revision++;
-      this._broadcast(entry);this._schedule(entry);
-    },800);
+    entry.resolutionPause=false;entry.pauseUntil=0;
+    if(entry.game.roundOver)entry.room=Core.archiveMatch(entry.room,entry.game);
+    // The original leader resumes immediately after the requested player
+    // agrees or declines. No artificial pause is required.
+    entry.revision++;this._broadcast(entry);this._schedule(entry);
   }
   _afterPlay(entry,before){
     entry.revision++;
     const resolved=Core.recordAiyResolution(before,entry.game);
     if(entry.game.roundOver)entry.room=Core.archiveMatch(entry.room,entry.game);
+    // The new leader may request Aiybai at their own pace until they
+    // either start the next Aiy or initiate one consensual request.
     entry.aiybaiWindowOpen=!!(resolved&&!entry.game.roundOver);
-    if(resolved&&!entry.game.roundOver){
-      entry.resolutionPause=true;entry.pauseUntil=Date.now()+this.resolutionDelay;
-      this._broadcast(entry);
-      clearTimeout(entry.resolutionTimer);
-      entry.resolutionTimer=setTimeout(()=>{
-        if(!this.rooms.has(entry.room.code))return;
-        if(entry.game.aiybaiRequest)return;
-        entry.resolutionPause=false;entry.pauseUntil=0;entry.aiybaiWindowOpen=false;entry.revision++;
-        this._broadcast(entry);this._schedule(entry);
-      },this.resolutionDelay);
-    }else{this._broadcast(entry);this._schedule(entry);}
+    entry.resolutionPause=false;entry.pauseUntil=0;
+    this._broadcast(entry);this._schedule(entry);
   }
   _schedule(entry){
     clearTimeout(entry.aiTimer);
