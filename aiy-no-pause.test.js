@@ -6,7 +6,7 @@ const Engine=require('./online-server/load-engine.js');
 const {RoomService}=require('./online-server/room-service.js');
 
 const html=fs.readFileSync(__dirname+'/index.html','utf8');
-assert.match(html,/function beginSoloHumanLeadPause\(\)/,'solo human Aiy leads get a brief pause');
+assert.match(html,/function beginSoloAiyReview\(\)/,'solo game reviews every completed Aiy');
 assert.match(html,/renderSolo\(\);\},1000\);/,'solo human pause is exactly 1000ms');
 assert.match(html,/aiTimer=setTimeout\(playSoloAI,1000\)/,'solo AI move interval is exactly 1000ms');
 assert.doesNotMatch(html,/2200\)/,'obsolete long solo pause is removed');
