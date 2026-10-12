@@ -14,7 +14,8 @@ function prepare(){
  room=Core.applyLobbyAction(room,{type:'SET_READY',clientId:'host',ready:true});
  room=Core.applyLobbyAction(room,{type:'SET_READY',clientId:'guest',ready:true});
  const started=Core.startGame(room,Engine,()=>0.45);
- started.game.lastResolution={type:'normal',leadSuit:'♣',cards:[],winnerIndex:2};
+ started.game.lastResolution={type:'normal',leadSuit:'♣',cards:[],winnerIndex:0};
+ started.game.currentPlayer=0;
  started.room.matchNumber=1;
  return started;
 }
@@ -23,6 +24,9 @@ function unit(){
  let {room,game}=prepare();
  assert.equal(totalCards(game),52);
  assert.equal(Core.requestAiybai(room,game,'host',false).ok,false,'no request outside break');
+ assert.match(Core.requestAiybai(room,game,'guest',true).error,/only the player leading/i,'non-leader cannot request');
+ const never=structuredClone(game);never.lastResolution=null;
+ assert.equal(Core.requestAiybai(room,never,'host',true).ok,false,'cannot request before first Aiy');
  const mid=structuredClone(game);mid.trick=[{playerIndex:2,card:mid.players[2].hand[0]}];
  assert.equal(Core.requestAiybai(room,mid,'host',true).ok,false,'cannot collect mid Aiy');
  const r=Core.requestAiybai(room,game,'host',true);
@@ -56,14 +60,14 @@ function unit(){
  const second=Core.requestAiybai(room,skipped,'host',true);
  assert.equal(Core.answerAiybai(second.state,2,true).state.players[2].status,'finished');
  const final=Core.answerAiybai(second.state,2,true).state;
- assert.equal(final.currentPlayer,3,'if former starter finished, next active leads after them');
+ assert.equal(final.currentPlayer,0,'the next Aiy leader keeps their turn after collecting');
  assert.equal(totalCards(final),52);
  // With only two active players, consent finishes the match, keeps
  // first/last ordering, and archives same-room totals once.
  const two=structuredClone(game);
  two.players[0].hand.push(...two.players[2].hand,...two.players[3].hand);
  for(const i of [2,3]){two.players[i].hand=[];two.players[i].status='finished';}
- two.finishedOrder=[2,3];two.currentPlayer=1;
+ two.finishedOrder=[2,3];two.currentPlayer=0;
  const offer=Core.requestAiybai(room,two,'host',true);
  assert.equal(offer.toSeat,1);
  const ended=Core.answerAiybai(offer.state,1,true).state;
@@ -95,12 +99,15 @@ async function online(){
   action(host,'READY',{ready:true});action(guest,'READY',{ready:true});action(host,'START');
   const entry=service.rooms.get(code);
   clearTimeout(entry.aiTimer);entry.aiTimer=null;
-  entry.resolutionPause=true;entry.aiybaiWindowOpen=true;
-  entry.game.lastResolution={type:'normal',leadSuit:'♣',cards:[],winnerIndex:2};
+  entry.resolutionPause=false;entry.aiybaiWindowOpen=true;
+  entry.game.lastResolution={type:'normal',leadSuit:'♣',cards:[],winnerIndex:1};
+  entry.game.currentPlayer=1;
   entry.game.trick=[];
   const before=entry.game.players.map(p=>p.hand.length);
+  action(host,'REQUEST_AIYBAI');
+  assert.match(host.latest('ERROR').message,/only the player leading/i);
   action(host,'PLAY',{cardId:entry.game.players[0].hand[0].id});
-  assert.match(host.latest('ERROR').message,/wait/i);
+  assert.match(host.latest('ERROR').message,/not your turn/i);
   action(guest,'REQUEST_AIYBAI');
   const request=entry.game.aiybaiRequest;
   assert.deepEqual(request,{fromSeat:1,toSeat:2});
@@ -121,23 +128,22 @@ async function online(){
   assert.equal(totalCards(entry.game),52);
   assert.equal(entry.aiybaiWindowOpen,false);
   assert.equal(entry.game.aiybaiRequest,undefined);
-  await sleep(850);
-  assert.equal(entry.resolutionPause,false);
+  assert.equal(entry.resolutionPause,false,'no timed pause after consent');
   // Explicit human agreement and rejection must work with seat ownership.
-  entry.resolutionPause=true;entry.aiybaiWindowOpen=true;
-  action(host,'REQUEST_AIYBAI'); // host targets seat 1 human
+  entry.game.currentPlayer=0;entry.resolutionPause=false;entry.aiybaiWindowOpen=true;
+  action(host,'REQUEST_AIYBAI'); // next leader targets seat 1 human
   assert.deepEqual(entry.game.aiybaiRequest,{fromSeat:0,toSeat:1});
   action(guest,'ANSWER_AIYBAI',{accept:false});
   assert.equal(entry.game.players[1].hand.length,before[1]+before[2]);
   assert.equal(entry.game.aiybaiRequest,undefined);
   assert.equal(entry.aiybaiWindowOpen,false);
-  entry.resolutionPause=true;entry.aiybaiWindowOpen=true;
+  entry.game.currentPlayer=0;entry.resolutionPause=false;entry.aiybaiWindowOpen=true;
   action(host,'REQUEST_AIYBAI');
   action(guest,'ANSWER_AIYBAI',{accept:true});
   assert.equal(entry.game.players[1].status,'finished');
   assert.equal(entry.game.players[0].hand.length,before[0]+before[1]+before[2]);
   assert.equal(totalCards(entry.game),52);
-  console.log('PASS online: human/AI consent, authorization, hidden cards, pause/resume, decline');
+  console.log('PASS online: leader-only requests, human/AI consent, hidden cards, no pause and decline');
  }finally{service.shutdown();}
 }
 (async()=>{unit();await online();})().catch(err=>{console.error(err.stack||err);process.exitCode=1;});
