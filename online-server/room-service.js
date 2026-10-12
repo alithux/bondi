@@ -179,6 +179,7 @@ class RoomService {
     entry.revision++;this._broadcast(entry);this._schedule(entry);
   }
   _afterPlay(entry,before){
+    clearTimeout(entry.aiTimer);entry.aiTimer=null;
     entry.revision++;
     const resolved=Core.recordAiyResolution(before,entry.game);
     if(entry.game.roundOver)entry.room=Core.archiveMatch(entry.room,entry.game);
