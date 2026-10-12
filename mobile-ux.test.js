@@ -83,7 +83,7 @@ assert.equal($('inviteLinkField').classList.contains('hidden'),false);
  assert.match($('handTurnStatus').textContent,/Waiting for/);
  assert.equal($('play').disabled,true);
  view.currentPlayer=0;view.resolutionPause=true;update();
- assert.match($('handTurnStatus').textContent,/އަތް resolving/);
+ assert.match($('handTurnStatus').textContent,/އަތް complete — next turn in a moment/);
  assert.equal($('handTurnStatus').classList.contains('paused'),true);
  // Turn display and selected-card controls are read-only while the Aiy resolves.
  console.log('PASS Stage 5.9 phone cards, selection, turn status, reconnection and invite sharing');
