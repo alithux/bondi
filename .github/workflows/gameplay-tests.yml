@@ -15,6 +15,7 @@ jobs:
       - run: node home-contrast.test.js
       - run: node mobile-ux.test.js
       - run: node match-results-ui.test.js
+      - run: node aiy-no-pause.test.js
       - run: node aiybai-consent.test.js
       - run: node aiybai-local.test.js
       - run: node match-results.test.js

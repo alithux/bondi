@@ -357,7 +357,7 @@
       if (!this.room || this.room.phase !== 'game') return;
       this._syncSharedGame(true);
       const r = Core.requestAiybai(this.room, this.game, this.clientId,
-        this.resolutionPause && this.aiybaiWindowOpen);
+        this.aiybaiWindowOpen);
       if (!r.ok) return this._fail(r.error);
       clearTimeout(this.resolutionTimer);
       this.game = r.state;
@@ -391,21 +391,9 @@
       if (!r.ok) return this._fail(r.error);
       clearTimeout(this.resolutionTimer);
       this.game = r.state;this.aiybaiWindowOpen=false;
-      if (this.game.roundOver) {
-        this.room = Core.archiveMatch(this.room,this.game);
-        this.resolutionPause=false;this.pauseUntil=0;
-      } else {
-        this.resolutionPause=true;this.pauseUntil=Date.now()+800;
-      }
-      this._commitSharedGame();this._broadcastViews();
-      if (this.game.roundOver) return;
-      const expected=this.sharedRevision;
-      this.resolutionTimer=setTimeout(()=>{
-        const current=sharedGameRead(this.room?.code);
-        if(current && current.revision!==expected){this._syncSharedGame(true);return;}
-        this.resolutionPause=false;this.pauseUntil=0;
-        this._commitSharedGame();this._broadcastViews();this._scheduleNext();
-      },800);
+      this.resolutionPause=false;this.pauseUntil=0;
+      if (this.game.roundOver) this.room = Core.archiveMatch(this.room,this.game);
+      this._commitSharedGame();this._broadcastViews();this._scheduleNext();
     }
 
     playCard(cardId) {
@@ -442,29 +430,11 @@
       const resolved = Core.recordAiyResolution(before, this.game);
       if (this.game.roundOver) this.room = Core.archiveMatch(this.room, this.game);
       this.aiybaiWindowOpen = !!(resolved && !this.game.roundOver);
+      this.resolutionPause = false;this.pauseUntil = 0;
       clearTimeout(this.resolutionTimer);
-      if (resolved && !this.game.roundOver) {
-        this.resolutionPause = true;
-        this.pauseUntil = Date.now() + this.resolutionDelay;
-        this._commitSharedGame();
-        this._broadcastViews();
-        const expectedRevision = this.sharedRevision;
-        this.resolutionTimer = setTimeout(() => {
-          const latest = sharedGameRead(this.room && this.room.code);
-          if (latest && Number(latest.revision || 0) !== expectedRevision) { this._syncSharedGame(true); return; }
-          this.resolutionPause = false;
-          this.aiybaiWindowOpen = false;
-          this.pauseUntil = 0;
-          this._commitSharedGame();
-          this._broadcastViews();
-          this._scheduleNext();
-        }, this.resolutionDelay);
-      } else {
-        this.pauseUntil = 0;
-        this._commitSharedGame();
-        this._broadcastViews();
-        this._scheduleNext();
-      }
+      this._commitSharedGame();
+      this._broadcastViews();
+      this._scheduleNext();
     }
 
     _scheduleNext() {
