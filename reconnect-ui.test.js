@@ -17,7 +17,7 @@ class El{
  setAttribute(){}
  querySelectorAll(){return [];}
 }
-const els=new Map(),$=k=>{if(!els.has(k))els.set(k,new El());return els.get(k);};
+const els=new Map(),$=k=>{if(!els.has(k)){const el=new El();if(k==='transportMode')el.value='online';els.set(k,el);}return els.get(k);};
 let lastClient=null;
 class FakeOnlineClient{
  constructor(options){this.options=options;this.session=JSON.parse(store.getItem('bondi:online:session:'+options.serverUrl));this.resumeCount=0;lastClient=this;}
