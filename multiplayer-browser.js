@@ -425,6 +425,7 @@
     }
 
     _afterPlay(before) {
+      clearTimeout(this.aiTimer);this.aiTimer=null;
       const resolved = Core.recordAiyResolution(before, this.game);
       if (this.game.roundOver) this.room = Core.archiveMatch(this.room, this.game);
       this.aiybaiWindowOpen = !!(resolved && !this.game.roundOver);
