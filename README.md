@@ -102,3 +102,13 @@ BONDI now supports a **manual Request Aiybai** action in multiplayer, based on t
 - The request UI is in the multiplayer gameplay area only (not the solo-vs-AI mode). The game stays at four players by default.
 
 The online server authorizes requests and acceptance based on the authenticated seat, not client-provided seat numbers. In same-browser test rooms, state is synchronized through the existing shared-game channel. The Stage 5.10.4 version label and cache key are updated. Regression tests in `aiybai-consent.test.js` cover transfers, refusal, authority, hidden cards, finished-seat skipping and results.
+
+
+## Stage 5.11 — Reliable online reconnection
+
+- A temporarily disconnected online human player has a **two-minute seat reservation** before the server assigns AI takeover. During this time, the seat, ongoing match and their private Aiybai are retained on the server.
+- Online play automatically retries an interrupted WebSocket connection and resynchronizes the player's authoritative room, hand and turn. A socket stuck without completing its handshake is closed and retried instead of hanging indefinitely.
+- Refreshing the same browser tab automatically tries to restore the saved authenticated session from **tab-scoped sessionStorage**; it does not create a duplicate player. On a second connected tab presenting the same session, the original connection is explicitly stopped and cannot continuously reclaim the seat.
+- Reconnecting uses an unpredictable 256-bit session token, and opponents never receive a player's hidden Aiybai. Invalid or expired sessions cannot reclaim an AI-taken-over seat. After the reservation expires, takeover remains irreversible for that match.
+- Session restoration only works while the online server still retains the room and original token. It does **not** preserve a room across server restarts or across different devices, and quitting a tab can discard its tab-scoped session key.
+- Automated server/client regression tests verify disconnect, reconnection, hidden cards, duplicate-tab replacement, stalled connections and expired-seat takeover. No BONDI gameplay rules or timing have changed.
