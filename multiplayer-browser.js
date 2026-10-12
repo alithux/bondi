@@ -263,7 +263,7 @@
           this.pauseUntil = 0;
           this._commitSharedGame();
           this._broadcastViews();
-          this._scheduleNext();
+          this._scheduleNext(0);
           return true;
         }
         return false;
@@ -275,7 +275,7 @@
         this.pauseUntil = 0;
         this._commitSharedGame();
         this._broadcastViews();
-        this._scheduleNext();
+        this._scheduleNext(0);
       }
       return true;
     }
@@ -425,29 +425,32 @@
     }
 
     _afterPlay(before) {
+      clearTimeout(this.aiTimer);this.aiTimer=null;
       const resolved = Core.recordAiyResolution(before, this.game);
       if (this.game.roundOver) this.room = Core.archiveMatch(this.room, this.game);
       this.aiybaiWindowOpen = !!(resolved && !this.game.roundOver);
       clearTimeout(this.resolutionTimer);
-      // AI already waits aiDelay (1000ms). Only delay human leads here.
-      const humanLead = this.aiybaiWindowOpen && this.resolutionDelay>0 && !Core.isAISeat(this.room, this.game.currentPlayer);
-      this.resolutionPause = humanLead;
-      this.pauseUntil = humanLead ? Date.now()+this.resolutionDelay : 0;
+      // Keep every completed Aiy on screen for 1000ms, even when the
+      // following leader is AI. An AI's next lead happens immediately after
+      // review instead of waiting an additional AI thinking interval.
+      const reviewAiy = this.aiybaiWindowOpen && this.resolutionDelay>0;
+      this.resolutionPause = reviewAiy;
+      this.pauseUntil = reviewAiy ? Date.now()+this.resolutionDelay : 0;
       this._commitSharedGame();
       this._broadcastViews();
-      if (humanLead) {
+      if (reviewAiy) {
         const expected = this.sharedRevision;
         this.resolutionTimer = setTimeout(() => {
           const latest = sharedGameRead(this.room?.code);
           if (latest && latest.revision !== expected) { this._syncSharedGame(true); return; }
           if (this.game?.aiybaiRequest) return;
           this.resolutionPause = false;this.pauseUntil = 0;
-          this._commitSharedGame();this._broadcastViews();this._scheduleNext();
+          this._commitSharedGame();this._broadcastViews();this._scheduleNext(0);
         }, this.resolutionDelay);
       } else this._scheduleNext();
     }
 
-    _scheduleNext() {
+    _scheduleNext(delay = this.aiDelay) {
       clearTimeout(this.aiTimer);
       if (!this.game || this.game.roundOver || this.resolutionPause || this.game.aiybaiRequest) return;
       const seat = this.game.currentPlayer;
@@ -465,7 +468,7 @@
         if (!result.ok) return this._fail(result.error);
         this.game = result.state;
         this._afterPlay(before);
-      }, this.aiDelay);
+      }, Math.max(0, delay));
     }
 
     _broadcastRoom() {

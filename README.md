@@ -88,7 +88,7 @@ Online-room lobbies show a selectable invite URL below the share buttons. If the
 These are website/UI-only changes; no modification to the server, AI engine, dealing or four-player multiplayer defaults. Automated mobile UI checks in `mobile-ux.test.js` cover invite sharing fallbacks, selectable cards, turn state, Aiy pause and reconnection. The mobile asset version is 5.9.0. Field testing on iOS/Android is still recommended.
 
 
-## Stage 5.10.3 — Balanced 1-second Aiy transitions
+## Stage 5.10.4 — Review each completed Aiy for 1 second
 
 BONDI now supports a **manual Request Aiybai** action in multiplayer, based on the confirmed real-life rule:
 
@@ -97,8 +97,8 @@ BONDI now supports a **manual Request Aiybai** action in multiplayer, based on t
 - The next player may **Agree** or **Decline**. There is **no transfer before acceptance**. If accepted, all remaining cards move to the requester and the giver immediately finishes. If declined, play continues unchanged.
 - Only one request is possible before that leader starts the next Aiy, preventing repeated dialogs. Human recipients have **30 seconds** to answer; unanswered offers expire safely with **no transfer**. The leader can then play immediately.
 - In games with AI seats, humans can request from the next active AI; the AI agrees to finish after a short response delay. **AI does not initiate unsolicited requests.** This ensures no Aiybai collection starts automatically.
-- **1-second transition to a human leader** after a completed Aiy in solo, local multiplayer or online multiplayer. An AI leader already has its own 1-second move timer and does not get a second pause. Requests remain available to the next human leader during the 1-second transition and afterwards, until they play their first card. An Aiybai request still waits for accept/decline or 30-second expiry, and resumes immediately once answered.
+- **One-second review of every completed Aiy**, including two-player endgames, in solo, same-browser, and online multiplayer. Both players' cards stay visible for the full second even if an AI will lead next. Human players can act after the review; an AI leader plays immediately when it ends, avoiding a second one-second wait. Requests remain available to the next human leader during the 1-second transition and afterwards, until they play their first card. An Aiybai request still waits for accept/decline or 30-second expiry, and resumes immediately once answered.
 - Card identities remain hidden from other players in public snapshots and logs; the transfer keeps all 52 cards in play and updates game completion/finishing order without counting it as a Bondi event.
 - The request UI is in the multiplayer gameplay area only (not the solo-vs-AI mode). The game stays at four players by default.
 
-The online server authorizes requests and acceptance based on the authenticated seat, not client-provided seat numbers. In same-browser test rooms, state is synchronized through the existing shared-game channel. The Stage 5.10.3 version label and cache key are updated. Regression tests in `aiybai-consent.test.js` cover transfers, refusal, authority, hidden cards, finished-seat skipping and results.
+The online server authorizes requests and acceptance based on the authenticated seat, not client-provided seat numbers. In same-browser test rooms, state is synchronized through the existing shared-game channel. The Stage 5.10.4 version label and cache key are updated. Regression tests in `aiybai-consent.test.js` cover transfers, refusal, authority, hidden cards, finished-seat skipping and results.

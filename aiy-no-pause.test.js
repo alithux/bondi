@@ -6,7 +6,7 @@ const Engine=require('./online-server/load-engine.js');
 const {RoomService}=require('./online-server/room-service.js');
 
 const html=fs.readFileSync(__dirname+'/index.html','utf8');
-assert.match(html,/function beginSoloHumanLeadPause\(\)/,'solo human Aiy leads get a brief pause');
+assert.match(html,/function beginSoloAiyReview\(\)/,'solo game reviews every completed Aiy');
 assert.match(html,/renderSolo\(\);\},1000\);/,'solo human pause is exactly 1000ms');
 assert.match(html,/aiTimer=setTimeout\(playSoloAI,1000\)/,'solo AI move interval is exactly 1000ms');
 assert.doesNotMatch(html,/2200\)/,'obsolete long solo pause is removed');
@@ -58,17 +58,33 @@ try{
  service._afterPlay(entry,previous);
  assert.equal(entry.resolutionPause,false,'following normal card play has no extra human lead pause');
  assert.equal(entry.aiybaiWindowOpen,false,'request closes once next Aiy begins');
- // When an AI wins the Aiy, its existing 1000ms move scheduling is sufficient.
+ // When only two players remain, keep their completed cards visible
+ // during the same one-second transition, even when an AI leads next.
  const aiEntry=service._roomEntry({...started.room,code:'AILEAD'});
  aiEntry.game=structuredClone(state);
- aiEntry.game.currentPlayer=1;
+ for(const i of [1,3]){aiEntry.game.players[i].hand=[];aiEntry.game.players[i].status='finished';}
+ aiEntry.game.currentPlayer=2;
+ aiEntry.game.lastResolution={type:'normal',leadSuit:'♠',winnerIndex:2,cards:[
+   {playerIndex:2,card:{id:'9♠',rank:'9',suit:'♠',value:9}},
+   {playerIndex:0,card:{id:'6♠',rank:'6',suit:'♠',value:6}}]};
+ const previousAI=structuredClone(aiEntry.game);
+ previousAI.trick=structuredClone(aiEntry.game.lastResolution.cards);
  service.rooms.set('AILEAD',aiEntry);
  service.aiDelay=1000;
- service._afterPlay(aiEntry,before);
- assert.equal(aiEntry.resolutionPause,false,'no extra 1000ms before AI timer');
- assert.equal(aiEntry.resolutionTimer,null,'no stacked resolution timer for AI');
- assert(aiEntry.aiTimer,'AI keeps its own 1000ms thinking timer');
- console.log('PASS exactly 1000ms human lead transition, existing AI timer and leader request');
+ const aiReviewStart=Date.now();
+ service._afterPlay(aiEntry,previousAI);
+ assert.equal(aiEntry.game.players.filter(p=>p.status==='active').length,2);
+ assert.equal(aiEntry.resolutionPause,true,'AI leader also holds resolved Aiy for a second');
+ assert(aiEntry.resolutionTimer,'one-second display timer exists for AI lead');
+ assert.equal(aiEntry.aiTimer,null,'AI is not scheduled to play during card review');
+ assert(aiEntry.pauseUntil>=aiReviewStart+970&&aiEntry.pauseUntil<=aiReviewStart+1150);
+ const projected=Core.projectGame(aiEntry.room,aiEntry.game,'host',aiEntry.resolutionPause,aiEntry.aiybaiWindowOpen);
+ assert.equal(projected.lastResolution.cards.length,2,'both players cards remain visible in snapshot');
+ assert.equal(projected.resolutionPause,true);
+ await new Promise(resolve=>setTimeout(resolve,1120));
+ assert.equal(aiEntry.resolutionPause,false,'review ends after about one second');
+ assert.equal(aiEntry.game.trick.length,1,'AI plays at end of review without second one-second wait');
+ console.log('PASS one-second card review for human and two-player AI leads, without extra AI delay');
 }finally{service.shutdown();}
 })().catch(err=>{console.error(err.stack||err);process.exitCode=1;});
 
