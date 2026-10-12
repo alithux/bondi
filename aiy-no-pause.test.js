@@ -14,12 +14,13 @@ let room=Core.createRoom({code:'NOPAUS',hostClientId:'host',hostName:'Host'});
 for(let i=0;i<3;i++)room=Core.applyLobbyAction(room,{type:'ADD_AI',clientId:'host'});
 room=Core.applyLobbyAction(room,{type:'SET_READY',clientId:'host',ready:true});
 const started=Core.startGame(room,Engine,()=>0.44);
-const before=started.game;
+let before=started.game;
 let state=before,plays=0;
 while(!state.lastResolution&&!state.roundOver&&plays++<8){
  const index=state.currentPlayer;
  const legal=Engine.legalMoves(state,index);
  assert(legal.length>0);
+ before=state; // The state immediately before the play that resolved this Aiy.
  const result=Engine.playCard(state,index,legal[0].id);
  assert(result.ok);
  state=result.state;
