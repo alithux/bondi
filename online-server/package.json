@@ -1,7 +1,7 @@
 {
   "name": "bondi-online-server",
   "private": true,
-  "version": "5.6.0",
+  "version": "5.12.0",
   "description": "Server-authoritative BONDI multiplayer",
   "scripts": {
     "start": "node server.js",
@@ -9,5 +9,8 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
   }
 }
