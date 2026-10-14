@@ -59,7 +59,8 @@ class RoomService {
       const entry=this._roomEntry(payload.room);
       entry.game=payload.game||null;
       entry.revision=Number(payload.revision)||0;
-      entry.updatedAt=Number(payload.updatedAt)||Date.now();
+      // Allow reconnect grace even when a Free Render server wakes after idling.
+      entry.updatedAt=Date.now();
       entry.aiybaiWindowOpen=!!payload.aiybaiWindowOpen;
       // Old timers no longer exist. Restart the resolved-Aiy/AI pacing rather
       // than leave a deadlocked pause or queue an instant unexpected move.
