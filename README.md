@@ -112,3 +112,21 @@ The online server authorizes requests and acceptance based on the authenticated 
 - Reconnecting uses an unpredictable 256-bit session token, and opponents never receive a player's hidden Aiybai. Invalid or expired sessions cannot reclaim an AI-taken-over seat. After the reservation expires, takeover remains irreversible for that match.
 - Session restoration only works while the online server still retains the room and original token. It does **not** preserve a room across server restarts or across different devices, and quitting a tab can discard its tab-scoped session key.
 - Automated server/client regression tests verify disconnect, reconnection, hidden cards, duplicate-tab replacement, stalled connections and expired-seat takeover. No BONDI gameplay rules or timing have changed.
+
+
+## Stage 5.12 — Recover online rooms after a server restart (requires database activation)
+
+BONDI can now store each server-authoritative online room, private game Aiybai, current Aiy, match history, room statistics and authenticated reconnect-session tokens in PostgreSQL. On startup, it reloads the stored rooms *before* accepting new connections. Human seats are marked temporarily disconnected and get the normal two-minute opportunity to reconnect to their original seat. Pending Aiybai requests are safely declined after a restart; no player is forced to transfer cards. Next AI plays are scheduled again; the rules, one-second card review and game UI are unchanged.
+
+**Configuration:** The deployed web service deliberately stays in the existing in-memory mode until the owner connects a database. To activate without exposing credentials in GitHub:
+
+1. In the Render **bondi-online** web service, set Build Command to `npm install --prefix online-server` (the old `echo` build command does not install Node dependencies).
+2. In the Render **bondi-rooms-persistence** PostgreSQL database dashboard, copy its **Internal Database URL**.
+3. In **bondi-online → Environment**, add the secret environment variable `DATABASE_URL` using that Internal Database URL. Do **not** paste it into GitHub source, logs, or chat.
+4. Redeploy and verify `https://bondi-online.onrender.com/health` reports `"persistence":"postgres_ready"` and the server logs report recovered room counts. Create a new test room, restart the web service, then reconnect from the same browser tab to verify it survives.
+
+If `DATABASE_URL` is unset, the health endpoint reports `"persistence":"not_configured"` and BONDI continues using volatile in-memory rooms. If PostgreSQL is configured but unavailable at startup, the server refuses to start rather than pretending stored rooms have been recovered. Later write failures are exposed as `"persistence":"degraded"` and require attention.
+
+**Free-plan limitations:** Render's Free PostgreSQL database expires **30 days after creation** (this first test database is scheduled to expire **13 November 2026**); Free PostgreSQL has no managed backups. Real long-term persistence requires replacing or upgrading the datastore before expiry. The persistence guarantee covers normal graceful service restarts/redeployments once it has been activated; unexpected crashes may lose updates not yet committed to PostgreSQL. Multiple independently active servers are not supported by the current single-server room authority.
+
+Validation: `node online-server/persistence.test.js` simulates a new server process, restoring both players' private Aiybai and tokens without duplicating seats. PostgreSQL is optional for other standalone tests and same-browser multiplayer.

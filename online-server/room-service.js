@@ -22,8 +22,80 @@ function translateFinishLogs(log,room) {
   return log.map(x=>x.replace(/\bPlayer ([1-4]) has finished\./g,(_,n)=>`${room.seats[Number(n)-1].name} (Seat ${n}) has finished.`));
 }
 class RoomService {
-  constructor({aiDelay=1000,resolutionDelay=1000,graceMs=SESSION_GRACE_MS, maxRooms=100,logger=()=>{}}={}) {
+  constructor({aiDelay=1000,resolutionDelay=1000,graceMs=SESSION_GRACE_MS, maxRooms=100,logger=()=>{},store=null}={}) {
     this.rooms=new Map();this.sessions=new Map();this.aiDelay=aiDelay;this.resolutionDelay=resolutionDelay;this.graceMs=graceMs;this.maxRooms=maxRooms;this.logger=logger;
+    this.store=store;this.persistenceQueue=Promise.resolve();this.persistenceLastError=null;this.stopping=false;
+  }
+  // Serialize writes globally so a late asynchronous snapshot cannot overwrite
+  // a newer move. Store the private game only in Postgres, never in public logs.
+  _persist(entry){
+    if(!this.store||this.stopping)return;
+    const code=entry.room.code;
+    const payload=clone({version:1,room:entry.room,game:entry.game,
+      revision:entry.revision,aiybaiWindowOpen:entry.aiybaiWindowOpen,
+      resolutionPause:entry.resolutionPause,pauseUntil:entry.pauseUntil,
+      updatedAt:entry.updatedAt,
+      sessions:[...this.sessions.values()].filter(x=>x.roomCode===code)
+        .map(x=>({token:x.token,clientId:x.clientId,roomCode:x.roomCode,
+          name:x.name,lastSeen:x.lastSeen}))});
+    this.persistenceQueue=this.persistenceQueue.then(async()=>{
+      await this.store.save(code,payload);this.persistenceLastError=null;
+    }).catch(err=>{this.persistenceLastError=err.message;this.logger('Persistent room save failed',err.message);});
+  }
+  _persistDeletion(code){
+    if(!this.store||this.stopping)return;
+    this.persistenceQueue=this.persistenceQueue.then(()=>this.store.remove(code))
+      .catch(err=>{this.persistenceLastError=err.message;this.logger('Persistent room delete failed',err.message);});
+  }
+  async flushPersistence(){await this.persistenceQueue;}
+  async restore(){
+    if(!this.store)return 0;
+    await this.store.initialize();
+    const records=await this.store.loadAll();let restored=0;
+    for(const {code,payload} of records){
+      if(!payload||payload.version!==1||payload.room?.code!==code
+        ||!Array.isArray(payload.room.seats))continue;
+      if(this.rooms.size>=this.maxRooms)break;
+      const entry=this._roomEntry(payload.room);
+      entry.game=payload.game||null;
+      entry.revision=Number(payload.revision)||0;
+      // Allow reconnect grace even when a Free Render server wakes after idling.
+      entry.updatedAt=Date.now();
+      entry.aiybaiWindowOpen=!!payload.aiybaiWindowOpen;
+      // Old timers no longer exist. Restart the resolved-Aiy/AI pacing rather
+      // than leave a deadlocked pause or queue an instant unexpected move.
+      entry.resolutionPause=false;entry.pauseUntil=0;
+      if(entry.game?.aiybaiRequest){
+        // No one should be forced into a card transfer during server restart.
+        const request=entry.game.aiybaiRequest;
+        const answer=Core.answerAiybai(entry.game,request.toSeat,false);
+        if(answer.ok)entry.game=answer.state;
+        entry.aiybaiWindowOpen=false;
+      }
+      this.rooms.set(code,entry);
+      for(const seat of entry.room.seats){
+        if(!seat.clientId||seat.isAI)continue;
+        seat.connected=false;
+        seat.reconnectUntil=Date.now()+this.graceMs;
+      }
+      for(const item of payload.sessions||[]){
+        if(!/^[a-f0-9]{64}$/.test(item.token||''))continue;
+        if(!Core.seatForClient(entry.room,item.clientId))continue;
+        if(this.sessions.has(item.token))continue;
+        const session={token:item.token,clientId:item.clientId,roomCode:code,
+          name:item.name,peer:null,lastSeen:Date.now(),disconnectTimer:null};
+        this.sessions.set(session.token,session);
+        session.disconnectTimer=setTimeout(()=>{
+          const live=this.rooms.get(code);
+          if(live&&!session.peer)this._leave(session,live);
+        },this.graceMs);
+      }
+      entry.revision++;restored++;
+      this._persist(entry);
+      if(entry.game&&!entry.game.roundOver)this._schedule(entry);
+    }
+    await this.flushPersistence();
+    return restored;
   }
   attach(peer) {
     peer._bondiv2={token:null,count:0,windowAt:Date.now()};
@@ -238,6 +310,7 @@ class RoomService {
   }
   _broadcast(entry){
     const room=visibleRoom(entry.room);
+    this._persist(entry);
     for(const s of this.sessions.values()){
       if(s.roomCode!==entry.room.code||!s.peer||s.peer.closed)continue;
       const seat=Core.seatForClient(entry.room,s.clientId);
@@ -288,8 +361,10 @@ class RoomService {
     }
     if(s.disconnectTimer)clearTimeout(s.disconnectTimer);
     this.sessions.delete(s.token);
+    if(this.rooms.has(entry.room.code))this._persist(entry);
   }
   _disconnect(peer) {
+    if(this.stopping)return;
     const token=peer._bondiv2?.token;
     if(!token)return;
     const s=this.sessions.get(token);
@@ -314,6 +389,7 @@ class RoomService {
     if(!entry)return;
     clearTimeout(entry.aiTimer);clearTimeout(entry.resolutionTimer);
     this.rooms.delete(code);
+    this._persistDeletion(code);
     for(const s of [...this.sessions.values()]){
       if(s.roomCode!==code)continue;
       if(s.peer&&!s.peer.closed){s.peer.sendJSON({type:'ROOM_CLOSED'});s.peer._bondiv2.token=null;}
@@ -327,6 +403,19 @@ class RoomService {
       if(!connected&&now-entry.updatedAt>IDLE_ROOM_MS)this._closeRoom(code);
     }
   }
-  shutdown(){for(const code of [...this.rooms.keys()])this._closeRoom(code);}
+  shutdown({preserveStore=false}={}){
+    if(preserveStore){
+      // SIGTERM/redeploy is not a player LEAVE. Keep tokens and games in DB.
+      // Never send ROOM_CLOSED, which would erase clients' resume tokens.
+      this.stopping=true;
+      for(const entry of this.rooms.values()){
+        clearTimeout(entry.aiTimer);clearTimeout(entry.resolutionTimer);
+      }
+      for(const session of this.sessions.values()){
+        clearTimeout(session.disconnectTimer);
+        if(session.peer&&!session.peer.closed)session.peer.close(1012);
+      }
+    }else for(const code of [...this.rooms.keys()])this._closeRoom(code);
+  }
 }
 module.exports={RoomService,cleanCode,translateFinishLogs,requireDistinctName};
