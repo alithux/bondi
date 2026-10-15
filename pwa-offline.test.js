@@ -84,18 +84,18 @@ async function emit(name,request){
  records.set('bondi-static-v5.11',new Map());
  await emit('install');
  assert(skip,'activate newly installed service worker');
- assert(records.has('bondi-static-v5.14.1'));
- assert(records.get('bondi-static-v5.14.1').size>=20,'entire public game shell is cached');
+ assert(records.has('bondi-static-v5.14.2'));
+ assert(records.get('bondi-static-v5.14.2').size>=20,'entire public game shell is cached');
  await emit('activate');
  assert(claimed,'new worker controls future navigations');
  assert(deletes.includes('bondi-static-v5.11'));
  const scripts=[...html.matchAll(/<script src="([^"]+)"/g)].map(m=>m[1]);
  for(const script of scripts){
-  assert(records.get('bondi-static-v5.14.1').has(resolve(script)),script+' needs an offline copy');
+  assert(records.get('bondi-static-v5.14.2').has(resolve(script)),script+' needs an offline copy');
  }
  const offlinePage=await emit('fetch',{url:scope+'?room=ABC123',method:'GET',mode:'navigate'});
  assert(offlinePage&&offlinePage.source==='cache','offline navigation loads cached BONDI page');
- const offlineScript=await emit('fetch',{url:resolve('source-part-01.js?v=5.14.1'),method:'GET',mode:'cors'});
+ const offlineScript=await emit('fetch',{url:resolve('source-part-01.js?v=5.14.2'),method:'GET',mode:'cors'});
  assert(offlineScript&&offlineScript.source==='cache','game engine remains accessible offline');
  const prevCalls=networkRequests.length;
  const ignored=await emit('fetch',{url:'https://bondi-online.onrender.com/health',method:'GET',mode:'cors'});
@@ -103,5 +103,5 @@ async function emit(name,request){
  assert.equal(networkRequests.length,prevCalls,'service worker must not call remote multiplayer service');
  const unlisted=await emit('fetch',{url:scope+'?token=secret',method:'GET',mode:'cors'});
  assert.equal(unlisted,null,'arbitrary request with session token must not be cached');
- console.log('PASS Stage 5.14.1 installable icons, offline solo shell, navigation fallback and multiplayer privacy');
+ console.log('PASS Stage 5.14.2 installable icons, offline solo shell, navigation fallback and multiplayer privacy');
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
