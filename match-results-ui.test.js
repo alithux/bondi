@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const Core=require('./multiplayer-core.js');
 const html=fs.readFileSync(__dirname+'/index.html','utf8');
 const js=html.slice(html.indexOf('<script>')+8,html.lastIndexOf('</script>'))
- .replace('function renderGame(state,','window.__testRenderGame=function renderGame(state,');
+ .replace('function beginSoloAiyReview()', 'window.__testRenderGame=renderGame; function beginSoloAiyReview()');
 for(const id of ['matchResultsPanel','resultsStandings','resultsSeries','roomTotals','resultsBondiCount','resultsAiyCount','resultsLastSeat'])assert.match(html,new RegExp('id="'+id+'"'));
 class ClassList {
  constructor(){this.values=new Set();}
