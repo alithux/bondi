@@ -143,3 +143,14 @@ BONDI is now an installable Progressive Web App (PWA) with 192px and 512px app i
 **Updates:** Service worker cache version `bondi-static-v5.13` and script query `?v=5.13` match. On a future release, change both to install an updated app shell; normal navigation prefers network but works offline with cached HTML when the network fails. No native App Store binary is created by this stage.
 
 Validation: `node pwa-offline.test.js` verifies the three PNG app icons decode, manifest sizes, precached script completeness, old-cache cleanup, offline navigation/script recovery and refusal to cache private multiplayer requests. Existing gameplay, UI, reconnect and persistence tests remain in CI.
+
+
+## Stage 5.14 — A real BONDI card-table view
+
+BONDI now displays the current **އަތް (Aiy)** over a green felt table with a subtle wooden rim. Players are arranged around the table relative to the local viewer: your seat appears at the bottom; for four-player games the others appear at left, top and right; for two-player solo games the opponent is at the top. Their name, seat number, Aiybai card count, dealer status, AI/human status and current-turn indicator remain visible. Human players' hidden cards are **never rendered**.
+
+The center board gives each player a place for their publicly played card and leaves an empty placeholder until they have played. Played cards have proper-looking ranks, corner indices and suit pips, with an emphasis for Bondi. The viewer's selectable Aiybai cards have a matching face design while preserving the existing swipe/scroll affordance, spoken card labels, tap selection, double-tap play and accessibility/disabled states.
+
+The Aiy display still holds completed cards for one second, and the next active player remains highlighted. This is a **UI-only stage**: no changes to rules, AI evaluation, timeouts, WebSocket protocols, the server or the PostgreSQL database. Screens adapt to phone and desktop widths and respect reduced-motion settings.
+
+Tests in `match-results-ui.test.js` verify rotating player positions, safe player-name display, no hidden-card exposure, two-player layout and the visibility of cards during the one-second Aiy review. The rest of the gameplay, online and PWA regression tests are unchanged, with the offline static cache updated to `bondi-static-v5.14` alongside script cache-busting.
