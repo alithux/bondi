@@ -74,7 +74,7 @@ assert.doesNotMatch($('resultsSeries').textContent,/AI finished first/,'simplifi
 assert.equal($('playAgain').classList.contains('hidden'),false);
 $('playAgain').click();assert.equal(current.rematches,1);
 update(false);
-assert.match($('seats').innerHTML,/data-seat="1" data-position="bottom"/,'guest's own seat rotates to bottom');
+assert.match($('seats').innerHTML,/data-seat="1" data-position="bottom"/,"guest seat rotates to bottom");
 assert.match($('seats').innerHTML,/data-seat="0" data-position="right"/);
 assert.equal($('matchResultsPanel').classList.contains('hidden'),false,'guests see identical results');
 assert.equal($('playAgain').classList.contains('hidden'),true,'guests cannot rematch');
