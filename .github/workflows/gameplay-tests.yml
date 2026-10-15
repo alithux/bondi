@@ -14,6 +14,7 @@ jobs:
           node-version: '22'
       - run: node home-contrast.test.js
       - run: node mobile-ux.test.js
+      - run: node solo-setup-visibility.test.js
       - run: node pwa-offline.test.js
       - run: node match-results-ui.test.js
       - run: node aiy-no-pause.test.js
