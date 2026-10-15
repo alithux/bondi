@@ -10,7 +10,7 @@ assert.match(html,/id="handLayout"/,'hand layout selector exists');
 assert.match(html,/value="straight">Straight/);
 assert.match(html,/value="arc">Arc/);
 assert.match(html,/\.cards\.arc \.card\.selected\{/,'selected card has an arc-specific raised position');
-assert.match(html,/\.cards\.arc \{[^}]*overflow-x:auto/,'arc remains scrollable for large Aiybai');
+assert.match(html,/\.cards\.arc\s*\{[^}]*overflow-x:auto/,'arc remains scrollable for large Aiybai');
 assert.match(html,/\.cards\.arc \.card:focus-visible/,'overlapping keyboard-focused cards remain visible');
 
 function boot(savedValue,failStorage=false){
