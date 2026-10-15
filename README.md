@@ -172,3 +172,12 @@ Beside **Your Aiybai**, a compact **Hand shape** dropdown lets each viewer switc
 This is a visual-only, viewer-side setting stored under `bondi:hand-layout` in browser `localStorage`. Switching shape doesn't deal cards, alter turn order, show opponent cards, or change card selection or double-tap play. It remains usable if localStorage is blocked and no personal hand data is saved. Each device/browser chooses its own shape independently.
 
 The PWA app-shell cache and asset versions are bumped to `5.14.2`. Test with `node aiybai-layout.test.js` and the existing CI suite.
+
+
+## Stage 5.14.3 — Full Aiybai fan, finger slide and automatic lead-suit focus
+
+In **Arc** mode, the entire Aiybai (including a 26-card two-player hand) fits across the available phone or desktop width as a compact overlapping grid. The hand no longer requires horizontal scrolling. Drag a finger from left to right across the fan to highlight/select each card without playing it; the currently selected card lifts and shows an explicit card preview, and the player taps **Play** to submit it. Ordinary taps, keyboard selection and double-tap play remain available. Since 26 cards must fit across a narrow phone, card indices overlap heavily; dragging exposes the complete currently selected card.
+
+When another player establishes the lead suit for the current **އަތް (Aiy)**, matching cards are visually highlighted. In **Straight** mode BONDI automatically scrolls to the first matching suit card **once per new Aiy**, not on every game redraw; in **Arc** mode all cards are already visible so the matching suit is highlighted without scrolling. No automatic scrolling occurs when the player cannot follow suit. Manual scrolling and selected-card state are preserved across ordinary redraws.
+
+This is a purely local interface change for Solo vs AI and multiplayer: no rule, turn order, opponent Aiybai, Aiy pacing, server or database change. The installed PWA cache updates to `5.14.3`. Tests cover the full 13/26-card fan, finger selection without auto-play, the Play button, suit focus and no repeated jump.
