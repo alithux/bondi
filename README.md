@@ -130,3 +130,16 @@ If `DATABASE_URL` is unset, the health endpoint reports `"persistence":"not_conf
 **Free-plan limitations:** Render's Free PostgreSQL database expires **30 days after creation** (this first test database is scheduled to expire **13 November 2026**); Free PostgreSQL has no managed backups. Real long-term persistence requires replacing or upgrading the datastore before expiry. The persistence guarantee covers normal graceful service restarts/redeployments once it has been activated; unexpected crashes may lose updates not yet committed to PostgreSQL. Multiple independently active servers are not supported by the current single-server room authority.
 
 Validation: `node online-server/persistence.test.js` simulates a new server process, restoring both players' private Aiybai and tokens without duplicating seats. PostgreSQL is optional for other standalone tests and same-browser multiplayer.
+
+
+## Stage 5.13 — Installable BONDI and offline Solo vs AI
+
+BONDI is now an installable Progressive Web App (PWA) with 192px and 512px app icons and an iPhone home-screen icon. A small service worker saves the public app shell, the ten engine source chunks, and supporting scripts locally. Once the site has been loaded online and its app shell cached, **Solo vs AI remains available without an internet connection**. BONDI rules, AI difficulty, އަތް pacing, Aiybai transfers and backend logic are unchanged.
+
+**Install:** Open [BONDI](https://alithux.github.io/bondi/) on an internet-connected device. On iOS Safari choose **Share → Add to Home Screen**; on Android Chrome choose **Install app** or **Add to Home screen** in the browser menu. On desktop, use the browser's install option when shown. BONDI includes inline setup instructions and an optional Install button in browsers that support the prompt.
+
+**Offline boundaries:** Multiplayer with other devices **requires internet**; the service worker does not intercept WebSockets, Render server requests, private room sessions, player cards, or database records. It caches only the shipped public files from GitHub Pages. An internet connection is needed again for online multiplayer, to fetch future updates, or to install on a new device. Offline solo match progress is **not persisted after closing/reloading**; a newly launched solo game starts from a fresh shuffle.
+
+**Updates:** Service worker cache version `bondi-static-v5.13` and script query `?v=5.13` match. On a future release, change both to install an updated app shell; normal navigation prefers network but works offline with cached HTML when the network fails. No native App Store binary is created by this stage.
+
+Validation: `node pwa-offline.test.js` verifies the three PNG app icons decode, manifest sizes, precached script completeness, old-cache cleanup, offline navigation/script recovery and refusal to cache private multiplayer requests. Existing gameplay, UI, reconnect and persistence tests remain in CI.
