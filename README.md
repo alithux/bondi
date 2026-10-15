@@ -163,3 +163,12 @@ The large **Solo vs AI** configuration panel (Players, Dealer, AI difficulty and
 **New game** opens the configuration screen without automatically losing the ongoing match. **Resume game** closes it and returns to the exact same cards. **Shuffle & deal** starts a fresh match with the currently selected settings and hides the configuration again. The AI difficulty of the current match is frozen until a new deal, so changing a setting and then resuming does not silently change that match's AI. Revisiting Solo from Home restores the ongoing match.
 
 Online multiplayer, game rules, Aiy timing, card table layout, server and PostgreSQL are unchanged. The offline app-shell cache and versioned script URLs are updated to `5.14.1`. Test: `node solo-setup-visibility.test.js` plus the existing regression suite.
+
+
+## Stage 5.14.2 — Optional Straight / Arc Aiybai
+
+Beside **Your Aiybai**, a compact **Hand shape** dropdown lets each viewer switch between **Straight** and **Arc** card arrangements at any time (solo or online multiplayer). Straight remains the default on a new device. The optional arc gently rotates the left and right cards to form a curved fan, keeps a slightly raised center, and lifts selected cards above the fan. Horizontal hand scrolling remains available for long Aiybai, including 26-card two-player games.
+
+This is a visual-only, viewer-side setting stored under `bondi:hand-layout` in browser `localStorage`. Switching shape doesn't deal cards, alter turn order, show opponent cards, or change card selection or double-tap play. It remains usable if localStorage is blocked and no personal hand data is saved. Each device/browser chooses its own shape independently.
+
+The PWA app-shell cache and asset versions are bumped to `5.14.2`. Test with `node aiybai-layout.test.js` and the existing CI suite.
