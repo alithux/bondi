@@ -10,7 +10,9 @@ assert.match(html,/id="handLayout"/,'hand layout selector exists');
 assert.match(html,/value="straight">Straight/);
 assert.match(html,/value="arc">Arc/);
 assert.match(html,/\.cards\.arc \.card\.selected\{/,'selected card has an arc-specific raised position');
-assert.match(html,/\.cards\.arc\s*\{[^}]*overflow-x:auto/,'arc remains scrollable for large Aiybai');
+assert.match(html,/\.cards\.arc\{[^}]*display:grid;grid-template-columns:repeat\(var\(--hand-count,13\),minmax\(0,1fr\)\)/,'arc always fits all cards in the available width');
+assert.match(html,/\.cards\.arc\{[^}]*overflow:visible/,'arc does not horizontally scroll');
+assert.match(html,/\.cards\.arc\{[^}]*touch-action:pan-y/,'horizontal finger drags are handled without blocking vertical page scroll');
 assert.match(html,/\.cards\.arc \.card:focus-visible/,'overlapping keyboard-focused cards remain visible');
 
 function boot(savedValue,failStorage=false){
@@ -20,11 +22,12 @@ function boot(savedValue,failStorage=false){
   toggle(v,on){if(on===undefined)on=!this.values.has(v);if(on)this.values.add(v);else this.values.delete(v);}
  }
  class Element{
-  constructor(id){this.id=id;this.value='';this.innerHTML='';this.textContent='';this.scrollLeft=0;this.disabled=false;this.classList=new ClassList();this.events={};this.dataset={};}
+  constructor(id){this.id=id;this.value='';this.innerHTML='';this.textContent='';this.scrollLeft=0;this.clientWidth=320;this.disabled=false;this.classList=new ClassList();this.events={};this.dataset={};this.style={values:{},setProperty:(k,v)=>{this.style.values[k]=v;}};}
   addEventListener(type,fn){this.events[type]=fn;}
   click(){return this.events.click?.({target:this});}
-  setAttribute(){}
-  querySelectorAll(sel){if(this.id==='hand'&&sel==='[data-card]'){this.buttons=[...this.innerHTML.matchAll(/data-card="([^"]+)"/g)].map(match=>{const b=new Element('card');b.dataset.card=match[1];return b;});return this.buttons;}return [];}
+  setAttribute(k,v){this[k]=v;}
+  getBoundingClientRect(){return {left:0,width:this.clientWidth};}
+  querySelectorAll(sel){if(this.id==='hand'&&sel==='[data-card]'){this.buttons=[...this.innerHTML.matchAll(/data-card="([^"]+)"/g)].map((match,i)=>{const b=new Element('card');b.dataset.card=match[1];b.offsetLeft=i*72;b.offsetWidth=68;return b;});return this.buttons;}return [];}
  }
  const elements=new Map(),$=id=>{if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);};
  let client, saved=null;
@@ -67,6 +70,7 @@ shape('arc');
 assert.deepEqual(getSaved(),['bondi:hand-layout','arc'],'choice persists on the device');
 assert.equal($('hand').classList.contains('arc'),true);
 assert.equal($('hand').classList.contains('straight'),false);
+assert.equal($('hand').style.values['--hand-count'],'13','full fan uses the complete card count');
 assert.match($('hand').innerHTML,/--fan-angle:-12\.0deg;--fan-rise:17\.0px/,'first card tilts to the left');
 assert.match($('hand').innerHTML,/--fan-angle:0\.0deg;--fan-rise:0\.0px/,'middle card is upright and raised');
 assert.match($('hand').innerHTML,/--fan-angle:12\.0deg;--fan-rise:17\.0px/,'last card tilts to the right');
@@ -109,4 +113,52 @@ restricted.$('soloMode').click();restricted.$('newGame').click();
 assert.equal(restricted.$('hand').classList.contains('arc'),false,'blocked storage falls back to Straight');
 restricted.shape('arc');
 assert.equal(restricted.$('hand').classList.contains('arc'),true,'arc still works if storage writes fail');
-console.log('PASS Aiybai straight/arc selection, saved preference, 13-card fan, solo + online input and storage fallback');
+
+const long=boot('arc');
+long.$('soloMode').click();
+long.$('players').value='2';long.$('dealer').value='1';long.$('newGame').click();
+assert.equal(long.$('hand').style.values['--hand-count'],'26','26-card Aiybai also fits in one fan');
+assert.equal(long.$('hand').scrollLeft,0,'26-card arc never horizontally scrolls');
+assert.equal((long.$('hand').innerHTML.match(/data-card=/g)||[]).length,26);
+
+// Slide across a touch-only fan. Selection changes on pointer move, but no
+// game play is sent until pressing the existing Play button.
+const drag=boot('arc');
+drag.$('multiMode').click();drag.$('playerName').value='Ay';drag.$('createRoom').click();
+const connection=drag.getClient();
+const slideRoom=Core.createRoom({code:'CD4321',hostClientId:'host',hostName:'Ay'});
+let filled=slideRoom;
+for(let i=0;i<3;i++)filled=Core.applyLobbyAction(filled,{type:'ADD_AI',clientId:'host'});
+filled=Core.applyLobbyAction(filled,{type:'SET_READY',clientId:'host',ready:true});
+const startedSlide=Core.startGame(filled,Engine,()=>0.35),slideView=Core.projectGame(startedSlide.room,startedSlide.game,'host');
+slideView.currentPlayer=0;slideView.resolutionPause=false;
+const snapshot=()=>connection.opts.onUpdate({room:startedSlide.room,view:slideView,seat:0,clientId:'host',isHost:true,connectionStatus:'connected'});
+snapshot();
+const last=slideView.players[0].hand.at(-1);
+drag.$('hand').events.pointerdown({pointerId:11,pointerType:'touch',button:0,clientX:39});
+drag.$('hand').events.pointermove({pointerId:11,pointerType:'touch',clientX:310});
+assert.equal(drag.$('play').textContent,'Play '+last.rank+last.suit,'drag picks final card without scrolling');
+assert.equal(drag.$('hand').buttons.at(-1).classList.contains('selected'),true,'finger-drag highlights the target');
+assert.match(drag.$('handPreview').textContent,/Selected:/);
+assert.equal(connection.played,undefined,'drag does not automatically play a card');
+drag.$('hand').events.pointerup({pointerId:11,pointerType:'touch',clientX:310});
+drag.$('play').click();
+assert.equal(connection.played,last.id,'Play uses the card chosen by dragging');
+
+// Straight mode: focus the new lead suit exactly once per Aiy, then do not
+// steal the horizontal position from the user on subsequent rerenders.
+drag.shape('straight');
+const suit=slideView.players[0].hand.at(-1).suit;
+slideView.leadSuit=suit;
+slideView.trick=[{playerIndex:1,card:{id:'first-lead-'+suit,rank:'3',suit}}];
+snapshot();
+assert.match(drag.$('hand').innerHTML,/lead-suit/,'lead suit cards are highlighted');
+assert(drag.$('hand').scrollLeft>0,'new lead suit auto-centers in Straight mode');
+drag.$('hand').scrollLeft=7;
+snapshot();
+assert.equal(drag.$('hand').scrollLeft,7,'ordinary state updates do not cause repeated focus jumps');
+slideView.trick=[{playerIndex:1,card:{id:'next-aiy-'+suit,rank:'5',suit}}];
+snapshot();
+assert(drag.$('hand').scrollLeft>7,'next Aiy focuses its suit again');
+
+console.log('PASS full 13/26-card fan, finger-slide selection, suit focus, solo + online, persistence and fallbacks');
