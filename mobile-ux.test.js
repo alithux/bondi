@@ -11,7 +11,7 @@ for(const id of ['handTurnStatus','inviteLink','inviteLinkField','hand','play','
 assert.match(html,/\.card\{flex-basis:68px;width:68px;min-width:68px;height:94px/,'cards are larger on phones');
 assert.match(html,/:focus-visible\{outline:3px solid var\(--gold\)/,'keyboard focus remains visible');
 assert.match(html,/\.room-total-row span\{font-size:\.87rem/,'results have readable labels');
-assert.match(html,/Stage 5\.13 · Install BONDI & play solo offline/);
+assert.match(html,/Stage 5\.14 · The BONDI Card Table/);
 
 class ClassList{
  constructor(){this.values=new Set(['hidden']);}
