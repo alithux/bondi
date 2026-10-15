@@ -39,7 +39,7 @@ assert.match(html,/id="installApp"/);
 assert.match(html,/id="offlineNotice"/);
 assert.match(html,/id="onlineOfflineNote"/);
 assert.match(html,/navigator.serviceWorker.register\('\.\/sw\.js'\)/);
-assert.match(html,/Stage 5\.13 · Install BONDI & play solo offline/);
+assert.match(html,/Stage 5\.14 · The BONDI Card Table/);
 const events={};
 const origin='https://alithux.github.io',scope=origin+'/bondi/';
 const resolve=path=>new URL(path,scope).href;
