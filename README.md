@@ -154,3 +154,12 @@ The center board gives each player a place for their publicly played card and le
 The Aiy display still holds completed cards for one second, and the next active player remains highlighted. This is a **UI-only stage**: no changes to rules, AI evaluation, timeouts, WebSocket protocols, the server or the PostgreSQL database. Screens adapt to phone and desktop widths and respect reduced-motion settings.
 
 Tests in `match-results-ui.test.js` verify rotating player positions, safe player-name display, no hidden-card exposure, two-player layout and the visibility of cards during the one-second Aiy review. The rest of the gameplay, online and PWA regression tests are unchanged, with the offline static cache updated to `bondi-static-v5.14` alongside script cache-busting.
+
+
+## Stage 5.14.1 — Hide Solo vs AI setup after dealing
+
+The large **Solo vs AI** configuration panel (Players, Dealer, AI difficulty and Shuffle & deal) is now visible **only before starting a solo match**, or when explicitly selecting **New game**. Once a match is dealt, it disappears and the card table moves directly below a compact navigation bar showing player count, chosen difficulty, **New game** and **Home**.
+
+**New game** opens the configuration screen without automatically losing the ongoing match. **Resume game** closes it and returns to the exact same cards. **Shuffle & deal** starts a fresh match with the currently selected settings and hides the configuration again. The AI difficulty of the current match is frozen until a new deal, so changing a setting and then resuming does not silently change that match's AI. Revisiting Solo from Home restores the ongoing match.
+
+Online multiplayer, game rules, Aiy timing, card table layout, server and PostgreSQL are unchanged. The offline app-shell cache and versioned script URLs are updated to `5.14.1`. Test: `node solo-setup-visibility.test.js` plus the existing regression suite.
