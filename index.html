@@ -318,7 +318,7 @@ function renderGame(state,{viewerSeat=0,aiSeats=new Set(),resolutionPause=false,
  $('aiy').innerHTML=order.map(i=>{
    const e=shownAiy.find(item=>item.playerIndex===i);
    const position=tableSeatPosition(i);
-   return `<div class="played ${e?'has-card':'awaiting'} ${e?.bondi?'bondi-play':''}" data-seat="${i}" data-position="${position}">
+   return `<div class="played ${e?'has-card':'awaiting'}${e?.bondi?' bondi-play':''}" data-seat="${i}" data-position="${position}">
     <div class="played-player">${escapeHTML(state.players[i].name)}</div>
     ${e?`<div class="face ${e.card.suit==='♥'||e.card.suit==='♦'?'red':''}" aria-label="${e.card.rank} of ${suitName(e.card.suit)}"><span class="face-corner">${e.card.rank}${e.card.suit}</span><span class="face-pip" aria-hidden="true">${e.card.suit}</span><span class="face-corner inverse" aria-hidden="true">${e.card.rank}${e.card.suit}</span></div>`:
       '<span class="played-placeholder" aria-label="Not played yet">—</span>'}
