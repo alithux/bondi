@@ -52,6 +52,13 @@ const view={
 };
 function update(isHost){current.args.onUpdate({room,view,clientId:isHost?'host':'guest',seat:isHost?0:1,isHost,connectionStatus:'connected'});}
 update(true);
+assert.match($('seats').innerHTML,/data-seat="0" data-position="bottom"/,'human is at bottom');
+assert.match($('seats').innerHTML,/data-seat="1" data-position="left"/,'next player is at left');
+assert.match($('seats').innerHTML,/data-seat="2" data-position="top"/);
+assert.match($('seats').innerHTML,/data-seat="3" data-position="right"/);
+assert.match($('seats').innerHTML,/Ayya &lt;Host&gt;/,'table names must be escaped');
+assert.match($('aiy').innerHTML,/class="played awaiting"/,'empty card places never reveal hands');
+assert.equal(($('aiy').innerHTML.match(/class="played awaiting"/g)||[]).length,4);
 assert.equal($('matchResultsPanel').classList.contains('hidden'),false,'results visible when match ends');
 assert.equal($('rematchPanel').classList.contains('hidden'),false,'host sees rematch panel');
 assert.equal($('resultsBondiCount').textContent,'8');
@@ -67,6 +74,8 @@ assert.doesNotMatch($('resultsSeries').textContent,/AI finished first/,'simplifi
 assert.equal($('playAgain').classList.contains('hidden'),false);
 $('playAgain').click();assert.equal(current.rematches,1);
 update(false);
+assert.match($('seats').innerHTML,/data-seat="1" data-position="bottom"/,'guest's own seat rotates to bottom');
+assert.match($('seats').innerHTML,/data-seat="0" data-position="right"/);
 assert.equal($('matchResultsPanel').classList.contains('hidden'),false,'guests see identical results');
 assert.equal($('playAgain').classList.contains('hidden'),true,'guests cannot rematch');
 view.roundOver=false;
@@ -114,7 +123,27 @@ view.players[1].status='finished';view.players[3].status='finished';
 update(true);
 assert.match($('aiy').innerHTML,/9♠/,'AI card stays visible after Aiy resolution');
 assert.match($('aiy').innerHTML,/6♠/,'human card stays visible after Aiy resolution');
+assert.equal(($('aiy').innerHTML.match(/class="played has-card"/g)||[]).length,2,
+ 'only played cards are revealed; no artificial face-up cards for finished players');
+assert.equal(($('aiy').innerHTML.match(/class="played awaiting"/g)||[]).length,2);
 assert.match($('handTurnStatus').textContent,/next turn in a moment/);
 view.resolutionPause=false;update(true);
 assert.doesNotMatch($('aiy').innerHTML,/9♠/,'old cards clear when review has ended');
+// The game supports two-player Solo vs AI: only top/bottom seats appear
+// and the Aiy board never expects two nonexistent opponent slots.
+const twoPlayer={
+ players:[{name:'You',status:'active',hand:[{rank:'A',suit:'♠',id:'A♠'}]},
+          {name:'AI 1',status:'active',hand:[]}],
+ dealer:1,currentPlayer:0,leadSuit:'♠',trick:[{playerIndex:1,card:{rank:'K',suit:'♠',id:'K♠'}}],
+ roundOver:false,log:[],message:'Your turn'
+};
+ctx.twoPlayer=twoPlayer;
+vm.runInContext('renderGame(twoPlayer,{viewerSeat:0,aiSeats:new Set([1]),resolutionPause:false,multiplayer:false})',ctx);
+assert.match($('seats').innerHTML,/data-seat="0" data-position="bottom"/);
+assert.match($('seats').innerHTML,/data-seat="1" data-position="top"/);
+assert.doesNotMatch($('seats').innerHTML,/data-position="left"|data-position="right"/);
+assert.match($('aiy').innerHTML,/K♠/);
+assert.equal(($('aiy').innerHTML.match(/class="played awaiting"/g)||[]).length,1);
+assert.match($('hand').innerHTML,/class="card-index"/,'new card styling retains legal card buttons');
+assert.match($('hand').innerHTML,/aria-label="A of spades"/,'screen-reader card label preserved');
 console.log('PASS match results, Aiybai UI and two-player resolved-Aiy card visibility');
