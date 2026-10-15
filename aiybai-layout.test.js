@@ -51,6 +51,8 @@ function boot(savedValue,failStorage=false){
   BondiMultiplayerCore:Core
  });
  vm.runInContext(script,ctx,{filename:'aiybai-layout-inline.js'});
+ // The DOM fixture doesn't parse default <select> options as a browser does.
+ $('players').value='4';$('dealer').value='3';$('aiDifficulty').value='hard';
  function shape(mode){$('handLayout').value=mode;$('handLayout').events.change({target:$('handLayout')});}
  return {$,shape,getSaved:()=>saved,getClient:()=>client};
 }
