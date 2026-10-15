@@ -4,7 +4,8 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const Core=require('./multiplayer-core.js');
 const html=fs.readFileSync(__dirname+'/index.html','utf8');
-const js=html.slice(html.indexOf('<script>')+8,html.lastIndexOf('</script>'));
+const js=html.slice(html.indexOf('<script>')+8,html.lastIndexOf('</script>'))
+ .replace('function renderGame(state,','window.__testRenderGame=function renderGame(state,');
 for(const id of ['matchResultsPanel','resultsStandings','resultsSeries','roomTotals','resultsBondiCount','resultsAiyCount','resultsLastSeat'])assert.match(html,new RegExp('id="'+id+'"'));
 class ClassList {
  constructor(){this.values=new Set();}
@@ -138,7 +139,7 @@ const twoPlayer={
  roundOver:false,log:[],message:'Your turn'
 };
 ctx.twoPlayer=twoPlayer;
-vm.runInContext('renderGame(twoPlayer,{viewerSeat:0,aiSeats:new Set([1]),resolutionPause:false,multiplayer:false})',ctx);
+vm.runInContext('window.__testRenderGame(twoPlayer,{viewerSeat:0,aiSeats:new Set([1]),resolutionPause:false,multiplayer:false})',ctx);
 assert.match($('seats').innerHTML,/data-seat="0" data-position="bottom"/);
 assert.match($('seats').innerHTML,/data-seat="1" data-position="top"/);
 assert.doesNotMatch($('seats').innerHTML,/data-position="left"|data-position="right"/);
