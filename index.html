@@ -407,8 +407,8 @@ $('transportMode').addEventListener('change',refreshOfflineNotice);
 refreshOfflineNotice();
 if(navigator.serviceWorker && (window.location?.protocol==='https:' ||
  ['localhost','127.0.0.1'].includes(window.location?.hostname))){
- window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js')
-  .catch(err=>console.warn('BONDI offline install unavailable:',err)));
+ navigator.serviceWorker.register('./sw.js')
+  .catch(err=>console.warn('BONDI offline install unavailable:',err));
 }
 // After a page refresh, restore the original authenticated seat automatically
 // from tab-scoped session storage. Never create another player for this user.
