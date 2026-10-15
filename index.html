@@ -427,7 +427,7 @@ if(multiplayer){
  else if(leadFocusKey!==lastLeadFocusKey){
    lastLeadFocusKey=leadFocusKey;
    const matchIndex=ownHand.findIndex(c=>c.suit===leadSuit);
-   if(matchIndex>=0 && handLayout==='straight' && !selected){
+   if(matchIndex>=0 && handLayout==='straight'){
      const button=handButtons[matchIndex];
      if(Number.isFinite(button?.offsetLeft)&&Number.isFinite(handEl.clientWidth)&&handEl.clientWidth>0){
        const target=Math.max(0,button.offsetLeft+(button.offsetWidth||68)/2-handEl.clientWidth/2);
