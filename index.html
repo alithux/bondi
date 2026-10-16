@@ -435,7 +435,10 @@ function updatePresence(){
 const handCount=p=>Number.isInteger(p.handCount)?p.handCount:(p.hand?p.hand.length:0);
 const setHidden=(id,hidden)=>$(id).classList.toggle('hidden',!!hidden);
 function showScreen(mode){
+ const actualGame=(mode==='multi-game'||(mode==='solo'&&!!soloState&&!soloSettingsOpen));
+ if(mode!==appMode)$('gameMenu').open=false;
  appMode=mode;
+ document.body?.classList?.toggle?.('in-game',actualGame);
  if(mode==='solo'&&!soloState)soloSettingsOpen=true;
  if(mode!=='multi-game'){setHidden('rematchPanel',true);setHidden('matchResultsPanel',true);setHidden('aiybaiOfferPanel',true);}
  setHidden('homePanel',mode!=='home');
@@ -474,7 +477,7 @@ function renderGame(state,{viewerSeat=0,aiSeats=new Set(),resolutionPause=false,
    const name=escapeHTML(p.name);
    const playerStatus=p.status==='finished'?'Finished':p.status==='pending-finish'?'Waiting for Aiy resolution':isActive?'To play':'In game';
    return `<div data-seat="${i}" data-position="${position}" class="seat ${offline?'offline':''} ${i===viewerSeat?'you':''} ${isActive?'active':''} ${p.status==='finished'?'finished':''}">
-     <span class="seat-avatar" aria-hidden="true">${i===viewerSeat?'★':role==='Player'?'●':'◆'}</span>
+     <span class="seat-avatar" aria-hidden="true">${i===viewerSeat?'★':escapeHTML((p.name||'P').trim().charAt(0).toUpperCase()||'P')}</span>
      <div class="seat-copy"><b>${name}</b><small>Seat ${i+1}${i===viewerSeat?' · You':''} · ${role}</small>
        <span class="seat-cards">${handCount(p)} cards <span class="seat-state">${i===state.dealer?'· Dealer ':''}· ${playerStatus}</span></span></div>
      ${isActive?'<span class="seat-turn">TURN</span>':''}
@@ -505,6 +508,21 @@ function renderGame(state,{viewerSeat=0,aiSeats=new Set(),resolutionPause=false,
    aiTurn=!state.roundOver&&aiSeats.has(state.currentPlayer);
 const onlineBlocked=multiplayer&&mpKind==='online'&&mpSnapshot?.connectionStatus!=='connected';
 const canPlay=myTurn&&!onlineBlocked;
+// Use public game state and the local viewer to update the mobile HUD.
+$('hudRoom').textContent=multiplayer?`Room ${mpSnapshot?.room?.code||'—'}`:`Solo · ${n} players`;
+$('hudTurn').textContent=state.roundOver?'Match complete':
+  onlineBlocked?'Reconnecting…':state.aiybaiRequest?'Aiybai request':
+  resolutionPause?'އަތް complete':myTurn?'● Your turn':`Waiting for ${current.name}`;
+$('hudTurn').classList.toggle('ready',canPlay&&!resolutionPause&&!state.aiybaiRequest);
+$('hudTurn').classList.toggle('blocked',onlineBlocked);
+$('hudLead').textContent=resolutionPause&&state.lastResolution?
+  `Lead: ${state.lastResolution.leadSuit||'—'}`:state.leadSuit?`Lead: ${state.leadSuit}`:'Lead: —';
+$('aiyProgress').textContent=`${shownAiy.length} / ${n}`;
+const connectionStatus=mpSnapshot?.connectionStatus;
+$('hudConnection').textContent=multiplayer&&mpKind==='online'?
+  (connectionStatus==='connected'?'● Online':connectionStatus==='connecting'?'◌ Connecting':'● Reconnect'):
+  multiplayer?'● Local':'● Solo';
+$('hudConnection').classList.toggle('degraded',onlineBlocked);
 if(multiplayer){
  const message=onlineBlocked?'Reconnecting — cards cannot be played yet.':state.roundOver?'Game complete.':state.aiybaiRequest?'Waiting for Aiybai agreement…':resolutionPause?'Next Aiy in a moment…':myTurn?'YOUR TURN — choose a legal card':`Waiting for ${current.name} (Seat ${state.currentPlayer+1})`;
  $('turnNotice').textContent=message;setHidden('turnNotice',false);
