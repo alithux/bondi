@@ -25,7 +25,7 @@ assert.match(html,/#gameArea \.table-seats \.seat\[data-position="top"\]/);
 assert.match(html,/#gameArea \.table-seats \.seat\[data-position="bottom"\]/);
 assert.match(html,/@media\(max-width:360px\)/,'small Android and iPhone screens are supported');
 assert.match(html,/@media\(max-height:740px\)/,'short screens compact the interface');
-assert.match(html,/Stage 5\.15A · Modern mobile game/);
+assert.match(html,/Stage 5\.15A\.1 · Shuffle & deal animation/);
 
 class ClassList{
  constructor(){this.items=new Set(['hidden']);}
