@@ -95,7 +95,7 @@ assert.equal(document.body.classList.contains('in-game'),true,'resume returns to
 $('soloHome').click();
 assert.equal(document.body.classList.contains('in-game'),false,'leaving game returns ordinary navigation');
 $('multiMode').click();
-$('playerName').value='Ay';$('createRoom').click();
+$('playerName').value='Ay';$('transportMode').value='online';$('createRoom').click();
 assert(client,'multiplayer client still constructs');
 let room=Core.createRoom({code:'BD1234',hostClientId:'host',hostName:'Ay'});
 for(let i=0;i<3;i++)room=Core.applyLobbyAction(room,{type:'ADD_AI',clientId:'host'});
