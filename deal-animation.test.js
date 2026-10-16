@@ -9,10 +9,12 @@ const js=html.slice(html.indexOf('<script>')+8,html.lastIndexOf('</script>'));
 assert.match(html,/id="dealAnimation" class="deal-animation hidden" aria-hidden="true"/);
 assert.match(html,/id="tableArena"/);
 assert.match(html,/#gameArea \.deal-animation\{[^}]*pointer-events:none/,'animation cannot trap touch events');
-assert.match(html,/@media\(prefers-reduced-motion:reduce\)\{#gameArea \.deal-animation\{display:none!important/);
+assert.match(html,/@media\(prefers-reduced-motion:reduce\)\{#gameArea \.deck-stack\{animation:none!important/,'Reduced Motion shows static cards');
+assert.doesNotMatch(html,/@media\(prefers-reduced-motion:reduce\)\{#gameArea \.deal-animation\{display:none!important/,'never make the whole effect disappear');
+assert.match(html,/id="replayDeal"/,'manual replay is available');
 assert.match(html,/@keyframes bondi-shuffle/);
 assert.match(html,/@keyframes bondi-deal-flight/);
-assert.match(html,/Stage 5\.15A\.1 · Shuffle & deal animation/);
+assert.match(html,/Stage 5\.15A\.2 · iPhone dealing animation fix/);
 
 function boot(reduceMotion=false){
  class ClassList{
@@ -69,8 +71,8 @@ solo.$('soloMode').click();
 solo.$('players').value='4';solo.$('dealer').value='1';solo.$('aiDifficulty').value='hard';
 solo.$('newGame').click();
 assert.equal(visible(solo),true,'new solo deal starts animation');
-assert.equal((solo.$('dealAnimation').innerHTML.match(/class="shuffle-card"/g)||[]).length,4);
-assert.equal((solo.$('dealAnimation').innerHTML.match(/class="flying-card"/g)||[]).length,8);
+assert.equal((solo.$('dealAnimation').innerHTML.match(/class="shuffle-card"/g)||[]).length,6);
+assert.equal((solo.$('dealAnimation').innerHTML.match(/class="flying-card"/g)||[]).length,16);
 assert.match(solo.$('dealAnimation').innerHTML,/--deal-x:-119px/,'cards fly to the left player');
 assert.match(solo.$('dealAnimation').innerHTML,/--deal-y:-136px/,'cards fly to the top player');
 assert.match(solo.$('dealAnimation').innerHTML,/--deal-y:136px/,'cards fly to the viewer');
@@ -80,10 +82,16 @@ const handBefore=solo.$('hand').innerHTML;
 solo.tasks.at(-1)();
 assert.equal(visible(solo),false,'animation clears after its own timeout');
 assert.equal(solo.$('hand').innerHTML,handBefore,'finish callback never changes game state');
+solo.$('replayDeal').click();
+assert.equal(visible(solo),true,'manual replay makes the deal visible again');
+assert.equal(solo.$('hand').innerHTML,handBefore,'replay does not change the original Aiybai');
+solo.tasks.at(-1)();
+assert.equal(visible(solo),false,'replay cleans itself up');
+
 solo.$('soloOptions').click();solo.$('players').value='2';solo.$('dealer').value='1';
 solo.$('newGame').click();
 assert.equal(visible(solo),true,'reshuffle starts a new animation');
-assert.equal((solo.$('dealAnimation').innerHTML.match(/class="flying-card"/g)||[]).length,4,
+assert.equal((solo.$('dealAnimation').innerHTML.match(/class="flying-card"/g)||[]).length,8,
  'two-player animation deals only to existing seats');
 solo.$('soloHome').click();
 assert.equal(visible(solo),false,'leaving gameplay clears animation');
@@ -91,7 +99,11 @@ const quiet=boot(true);
 quiet.$('soloMode').click();
 quiet.$('players').value='4';quiet.$('dealer').value='1';quiet.$('aiDifficulty').value='hard';
 quiet.$('newGame').click();
-assert.equal(visible(quiet),false,'reduced-motion preference skips animation');
+assert.equal(visible(quiet),true,'reduced-motion mode keeps visible static feedback');
+assert.match(quiet.$('dealAnimation').innerHTML,/CARDS DEALT/,'clear static fallback');
+assert.doesNotMatch(quiet.$('dealAnimation').innerHTML,/class="flying-card"/,'no motion for reduced-motion preference');
+quiet.tasks.at(-1)();
+assert.equal(visible(quiet),false,'static fallback cleans up');
 assert.equal((quiet.$('hand').innerHTML.match(/data-card=/g)||[]).length,13,'reduced motion still deals normally');
 
 const online=boot();
@@ -110,7 +122,7 @@ const update=(connectionStatus='connected')=>client.options.onUpdate({
 });
 update();
 assert.equal(visible(online),true,'transition from multiplayer lobby to game deals cards');
-assert.equal((online.$('dealAnimation').innerHTML.match(/class="flying-card"/g)||[]).length,8);
+assert.equal((online.$('dealAnimation').innerHTML.match(/class="flying-card"/g)||[]).length,16);
 const taskCount=online.tasks.length;
 update();
 update('reconnecting');
@@ -126,4 +138,4 @@ restored.$('multiMode').click();
 restored.$('transportMode').value='online';restored.$('playerName').value='Ay';restored.$('createRoom').click();
 restored.getClient().options.onUpdate({room,view,clientId:'host',seat:0,isHost:true,connectionStatus:'connected'});
 assert.equal(visible(restored),false,'restoring an in-progress room does not pretend to redeal');
-console.log('PASS decorative 2/4-player shuffle and deal, independent gameplay, online transition, reconnect safety, and reduced motion');
+console.log('PASS iPhone-visible deal, 2/4-player motion, replay, online transitions, and reduced-motion feedback');
