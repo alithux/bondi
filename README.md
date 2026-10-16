@@ -192,3 +192,12 @@ The menu at the top right exposes the **existing** Solo New game/Home, multiplay
 This is a **frontend-only** update: no BONDI rule, AI model, އަތް (Aiy) resolution timing, Aiybai transfer, online multiplayer protocol, Render server, or PostgreSQL change. It reuses existing card buttons and touch selection; hidden opponent cards remain private. No third-party fonts or remote images are required, so offline solo continues working. The offline cache updates to `5.15a`.
 
 Testing: `node modern-game-screen.test.js` plus the full 18 existing test suite, including Aiy review, touch hand selection, reconnect and persistence. The aesthetic uses initials rather than real profile photos until profile/avatar consent exists.
+
+
+## Stage 5.15A.1 — Shuffle and dealing animations
+
+Starting a new Solo vs AI game now briefly **shuffles a stack of card backs in the center of the table and deals cards outward** to every seat. The same animation plays for everyone when an online or same-browser multiplayer room first transitions from the lobby into a started match, including a fresh match after a rematch lobby. It uses only anonymous card-back shapes; actual Aiybai cards are private and are not animated face-up.
+
+The animation is **cosmetic only**. It does not alter randomness, cards, dealer/right-hand opening turn, AI, Aiybai consent, WebSocket state, or the existing Aiy review/turn timings. It does not intercept taps. The true game hand is present immediately, and the overlay clears itself after about **1.4 seconds**. Navigating away cancels the overlay. Ordinary game updates, same-room reconnections, refreshes, and mid-game restores **do not replay** the deal. People using the OS/browser **Reduce Motion** preference see the game instantly without the visual animation.
+
+Implemented with lightweight local HTML and CSS keyframes, so there are no external files or network dependencies and offline Solo still works. The PWA cache is `bondi-static-v5.15a1`. Test via `node deal-animation.test.js`, followed by the complete regression suite.

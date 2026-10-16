@@ -291,8 +291,24 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 #gameArea .selected-summary .hand-preview{margin:0;min-height:22px}
 @media(max-height:740px){#gameArea .selected-summary{margin-bottom:4px}}
 
+
+/* Shuffle/deal cards are illustrations only: never block controls or alter state. */
+#gameArea .deal-animation{position:absolute;inset:0;z-index:15;overflow:hidden;border-radius:inherit;pointer-events:none;isolation:isolate}
+#gameArea .deal-animation.hidden{display:none!important}
+#gameArea .deal-animation::before{content:"";position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle,rgba(6,37,46,.34),transparent 76%);pointer-events:none}
+#gameArea .deal-label{position:absolute;left:50%;top:20%;transform:translateX(-50%);background:rgba(8,34,42,.89);border:1px solid rgba(242,205,139,.73);border-radius:999px;padding:5px 13px;white-space:nowrap;letter-spacing:.09em;color:#ffe5ae;font-size:.72rem;font-weight:850;animation:bondi-deal-label 1s ease-in-out both}
+#gameArea .deck-stack{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-5deg);width:45px;height:62px;border:2px solid #cce3db;border-radius:7px;background:repeating-linear-gradient(45deg,#0d455a 0 5px,#227082 5px 8px);box-shadow:-5px -4px 0 -2px #123b4e,-8px -6px 0 -3px #d0e5e0,0 5px 16px rgba(0,0,0,.42);animation:bondi-deck-stack .92s ease-in-out forwards}
+#gameArea .shuffle-card,#gameArea .flying-card{position:absolute;left:50%;top:50%;width:43px;height:60px;border-radius:7px;border:2px solid #c8ddd8;box-shadow:0 3px 10px rgba(0,0,0,.32);background:repeating-linear-gradient(-45deg,#0d4255 0 5px,#2b7888 5px 8px);backface-visibility:hidden;will-change:transform,opacity}
+#gameArea .shuffle-card{animation:bondi-shuffle .33s ease-in-out var(--shuffle-delay,0ms) both}
+#gameArea .flying-card{animation:bondi-deal-flight .52s cubic-bezier(.23,.7,.29,1) var(--deal-delay,270ms) both}
+@keyframes bondi-shuffle{0%{opacity:0;transform:translate(-50%,-50%) rotate(0)}30%{opacity:1;transform:translate(calc(-50% + var(--shuffle-x,30px)),calc(-50% - 14px)) rotate(var(--shuffle-rot,18deg))}75%{opacity:1;transform:translate(calc(-50% - var(--shuffle-x,30px)),calc(-50% + 8px)) rotate(calc(-1 * var(--shuffle-rot,18deg)))}100%{opacity:0;transform:translate(-50%,-50%) rotate(0)}}
+@keyframes bondi-deck-stack{0%,40%{opacity:1;transform:translate(-50%,-50%) rotate(-5deg)}80%{opacity:1;transform:translate(-50%,-50%) rotate(6deg)}100%{opacity:0;transform:translate(-50%,-50%) scale(.88)}}
+@keyframes bondi-deal-flight{0%{opacity:0;transform:translate(-50%,-50%) scale(.9) rotate(-10deg)}8%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--deal-x,0px)),calc(-50% + var(--deal-y,0px))) scale(.66) rotate(var(--deal-rot,0deg))}}
+@keyframes bondi-deal-label{0%,35%{opacity:1}70%{opacity:.94}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){#gameArea .deal-animation{display:none!important}#gameArea .deck-stack,#gameArea .shuffle-card,#gameArea .flying-card,#gameArea .deal-label{animation:none!important}}
+
 </style></head>
-<body><header><h1>BONDI</h1><p>Stage 5.15A · Modern mobile game · Hard AI 4.5</p></header>
+<body><header><h1>BONDI</h1><p>Stage 5.15A.1 · Shuffle & deal animation · Hard AI 4.5</p></header>
 <main>
 <section class="panel" id="homePanel"><strong>Choose how to play</strong><p class="note">Play solo or with friends. The confirmed BONDI rules remain unchanged.</p>
 <p id="offlineNotice" class="offline-notice hidden" role="status">You are offline. Solo vs AI works without internet after BONDI has loaded online once. Multiplayer needs an internet connection.</p>
@@ -394,22 +410,24 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
  <div class="table-heading"><div><span class="table-eyebrow">CURRENT AIY</span><h2>އަތް · Aiy</h2></div><span class="table-round-label" id="aiyProgress">0 / 4</span></div>
  <div id="status" class="status table-status" role="status">Starting game…</div>
  <div class="turn-notice hidden" id="turnNotice" role="status" aria-live="polite"></div>
- <div class="table-arena">
+ <div class="table-arena" id="tableArena">
   <div class="table-felt" aria-hidden="true"><div class="table-watermark">B</div></div>
   <div id="seats" class="seats table-seats" aria-label="Players around the table"></div>
   <div id="aiy" class="aiy table-aiy" aria-label="Cards played in the current Aiy"></div>
   <div id="lead" class="note table-lead" aria-live="off"></div>
+  <div id="dealAnimation" class="deal-animation hidden" aria-hidden="true"></div>
  </div>
 </section>
 <section class="panel game-hand-dock"><div class="row hand-heading"><div class="hand-heading-title"><strong id="handTitle">Your Aiybai</strong><span class="note" id="handNote"></span></div><label class="hand-layout-control" for="handLayout">Hand shape <select id="handLayout" aria-label="Aiybai card layout"><option value="straight">Straight</option><option value="arc">Arc</option></select></label></div><div class="hand-turn" id="handTurnStatus" role="status" aria-live="polite">Waiting for your turn…</div><div id="hand" class="cards"></div><div class="selected-summary"><span id="selectedCardMini" class="selected-mini-card hidden" aria-hidden="true">—</span><div id="handPreview" class="hand-preview" role="status" aria-live="off"></div></div><div class="play-actions"><button class="primary" id="play" disabled>Play selected card</button><button id="clear">Clear</button></div><p class="note" id="hint">Tap once to select; double-tap the same card to play. Swipe sideways to browse your Aiybai.</p></section>
 </div>
 </main>
-<script src="source-part-01.js?v=5.15a"></script><script src="source-part-02.js?v=5.15a"></script><script src="source-part-03.js?v=5.15a"></script><script src="source-part-04.js?v=5.15a"></script><script src="source-part-05.js?v=5.15a"></script><script src="source-part-06.js?v=5.15a"></script><script src="source-part-07.js?v=5.15a"></script><script src="source-part-08.js?v=5.15a"></script><script src="source-part-09.js?v=5.15a"></script><script src="source-part-10.js?v=5.15a"></script><script src="game-engine.js?v=5.15a"></script><script src="multiplayer-core.js?v=5.15a"></script><script src="multiplayer-browser.js?v=5.15a"></script><script src="online-config.js?v=5.15a"></script><script src="online-client.js?v=5.15a"></script>
+<script src="source-part-01.js?v=5.15a1"></script><script src="source-part-02.js?v=5.15a1"></script><script src="source-part-03.js?v=5.15a1"></script><script src="source-part-04.js?v=5.15a1"></script><script src="source-part-05.js?v=5.15a1"></script><script src="source-part-06.js?v=5.15a1"></script><script src="source-part-07.js?v=5.15a1"></script><script src="source-part-08.js?v=5.15a1"></script><script src="source-part-09.js?v=5.15a1"></script><script src="source-part-10.js?v=5.15a1"></script><script src="game-engine.js?v=5.15a1"></script><script src="multiplayer-core.js?v=5.15a1"></script><script src="multiplayer-browser.js?v=5.15a1"></script><script src="online-config.js?v=5.15a1"></script><script src="online-client.js?v=5.15a1"></script>
 <script>
 BondiEngineReady.then(()=>{
 const $=id=>document.getElementById(id);
 let appMode='home',soloState=null,selected=null,aiTimer=null,resolutionTimer=null,soloResolutionPause=false,fullGameLog=[],lastTapCard=null,lastTapAt=0,mp=null,mpSnapshot=null,mpKind=null;
 let soloSettingsOpen=true,soloGameConfig=null;
+let dealAnimationTimer=null,dealAnimationVersion=0;
 // Device-only visual preference. Never sent to the game server.
 const HAND_LAYOUT_KEY='bondi:hand-layout';
 let handLayout='straight',lastLeadFocusKey=null,arcDrag=null,ignoreArcClickUntil=0;
@@ -442,11 +460,48 @@ function updatePresence(){
 }
 const handCount=p=>Number.isInteger(p.handCount)?p.handCount:(p.hand?p.hand.length:0);
 const setHidden=(id,hidden)=>$(id).classList.toggle('hidden',!!hidden);
+// Cards are visual copies of public card backs: neither the animation nor
+// its timing changes the shuffled deck or any player's turn.
+function stopDealAnimation(){
+ dealAnimationVersion++;
+ if(dealAnimationTimer!==null)clearTimeout(dealAnimationTimer);
+ dealAnimationTimer=null;
+ const layer=$('dealAnimation');
+ layer.classList.toggle('hidden',true);
+ layer.innerHTML='';
+}
+function playDealAnimation(playerCount,viewerSeat=0){
+ stopDealAnimation();
+ if(![2,4].includes(playerCount))return;
+ // Accessibility and low-motion devices skip the entire animation.
+ if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return;
+ const arena=$('tableArena'),rect=arena.getBoundingClientRect?.()||{};
+ const width=rect.width>0?rect.width:330,height=rect.height>0?rect.height:390;
+ const slot=seat=>playerCount===2?(seat===viewerSeat?'bottom':'top'):
+   ['bottom','left','top','right'][(seat-viewerSeat+playerCount)%playerCount];
+ const offset={top:[0,-.34],bottom:[0,.34],left:[-.36,0],right:[.36,0]};
+ const cards=Array.from({length:playerCount*2},(_,i)=>{
+   const seat=i%playerCount,point=offset[slot(seat)];
+   const dx=Math.round(point[0]*width),dy=Math.round(point[1]*height);
+   return `<span class="flying-card" style="--deal-x:${dx}px;--deal-y:${dy}px;--deal-rot:${((i%3)-1)*8}deg;--deal-delay:${260+i*76}ms"></span>`;
+ }).join('');
+ const shuffle=[0,1,2,3].map(i=>
+   `<span class="shuffle-card" style="--shuffle-delay:${i*65}ms;--shuffle-x:${26+i*8}px;--shuffle-rot:${13+i*8}deg"></span>`
+ ).join('');
+ const layer=$('dealAnimation');
+ layer.innerHTML='<span class="deal-label">SHUFFLING &amp; DEALING</span><span class="deck-stack"></span>'+shuffle+cards;
+ layer.classList.toggle('hidden',false);
+ const version=dealAnimationVersion;
+ dealAnimationTimer=setTimeout(()=>{
+   if(version===dealAnimationVersion)stopDealAnimation();
+ },1420);
+}
 function showScreen(mode){
  const actualGame=(mode==='multi-game'||(mode==='solo'&&!!soloState&&!soloSettingsOpen));
  if(mode!==appMode)$('gameMenu').open=false;
  appMode=mode;
  document.body?.classList?.toggle?.('in-game',actualGame);
+ if(!actualGame)stopDealAnimation();
  if(mode==='solo'&&!soloState)soloSettingsOpen=true;
  if(mode!=='multi-game'){setHidden('rematchPanel',true);setHidden('matchResultsPanel',true);setHidden('aiybaiOfferPanel',true);}
  setHidden('homePanel',mode!=='home');
@@ -608,6 +663,7 @@ function startSolo(){
  soloSettingsOpen=false;
  showScreen('solo');
  renderSolo();
+ playDealAnimation(n,0);
 }
 function restoreSoloSettings(){
  if(!soloGameConfig)return;
@@ -742,7 +798,11 @@ function renderMultiplayerGame(){
  }
  updatePresence();
 }
-function onMPUpdate(snapshot){mpSnapshot=snapshot;if(snapshot.room?.phase==='lobby'&&Number(snapshot.room.matchNumber||0)>0){selected=null;lastTapCard=null;lastTapAt=0;wasMyTurn=false;document.title='BONDI · Next game';}if(!snapshot.room){if(snapshot.connectionStatus)$('multiError').textContent=connectionLabel(snapshot.connectionStatus);refreshResumeButton();return;}$('multiError').textContent='';$('mpErrorStatus').textContent='';if(snapshot.room.phase==='lobby'){showScreen('lobby');renderLobby();}else if(snapshot.room.phase==='game'){showScreen('multi-game');renderMultiplayerGame();}}
+function onMPUpdate(snapshot){
+ const previousRoom=mpSnapshot?.room;
+ const freshDeal=previousRoom?.phase==='lobby'&&snapshot.room?.phase==='game'&&
+   previousRoom.code===snapshot.room.code&&!!snapshot.view&&!snapshot.view.roundOver;
+ mpSnapshot=snapshot;if(snapshot.room?.phase==='lobby'&&Number(snapshot.room.matchNumber||0)>0){selected=null;lastTapCard=null;lastTapAt=0;wasMyTurn=false;document.title='BONDI · Next game';}if(!snapshot.room){if(snapshot.connectionStatus)$('multiError').textContent=connectionLabel(snapshot.connectionStatus);refreshResumeButton();return;}$('multiError').textContent='';$('mpErrorStatus').textContent='';if(snapshot.room.phase==='lobby'){showScreen('lobby');renderLobby();}else if(snapshot.room.phase==='game'){showScreen('multi-game');renderMultiplayerGame();if(freshDeal)playDealAnimation(snapshot.view?.players?.length,snapshot.seat);}}
 function onMPError(message){$('multiError').textContent=message;$('mpErrorStatus').textContent=message;if(appMode==='lobby')$('lobbyHint').textContent=message;if(appMode==='multi-game'){$('hint').textContent=message;if(mpSnapshot?.isHost&&mpSnapshot?.view?.roundOver&&mpSnapshot?.connectionStatus==='connected')$('playAgain').disabled=false;}}
 function ensureMP(){const kind=$('transportMode').value;if(mp&&mpKind!==kind){mp.leave(false);mp=null;}
 if(!mp){if(kind==='online'){const url=BondiOnline.serverWebSocketURL($('onlineServer').value);try{localStorage.setItem('bondi:online:url',$('onlineServer').value.trim());}catch(_){}mp=new BondiOnline.OnlineMultiplayerClient({onUpdate:onMPUpdate,onError:onMPError,serverUrl:url});}else{mp=new BondiMultiplayer.MultiplayerClient({engine:BondiEngine,onUpdate:onMPUpdate,onError:onMPError,aiDifficulty:'hard'});}mpKind=kind;}return mp;}
@@ -821,7 +881,7 @@ $('soloOptions').addEventListener('click',()=>{
  clearTimeout(aiTimer);
  restoreSoloSettings();soloSettingsOpen=true;showScreen('solo');
 });
-$('soloHome').addEventListener('click',()=>showScreen('home'));$('multiBack').addEventListener('click',()=>showScreen('home'));$('newGame').addEventListener('click',startSolo);$('clear').addEventListener('click',()=>{selected=null;if(appMode==='solo')renderSolo();else renderMultiplayerGame();});$('play').addEventListener('click',()=>{if(selected)playSelected(selected)});$('createRoom').addEventListener('click',()=>{try{ensureMP().createRoom($('playerName').value);}catch(e){onMPError(e.message);}});$('joinCode').addEventListener('input',e=>e.target.value=BondiMultiplayer.normalizeCode(e.target.value));$('transportMode').addEventListener('change',showTransportMode);$('onlineServer').addEventListener('input',refreshResumeButton);for(const id of ['retryLobby','retryGame'])$(id).addEventListener('click',()=>{try{if(mpKind==='online')mp.retryConnection();}catch(e){onMPError(e.message);}});$('resumeRoom').addEventListener('click',()=>{try{ensureMP().resumeRoom();}catch(e){onMPError(e.message);}});$('joinRoom').addEventListener('click',()=>{try{ensureMP().joinRoom($('playerName').value,$('joinCode').value);}catch(e){onMPError(e.message);}});$('leaveRoom').addEventListener('click',leaveMultiplayer);$('leaveGame').addEventListener('click',leaveMultiplayer);$('readyButton').addEventListener('click',()=>{const room=mpSnapshot.room,me=room.seats.find(s=>s.clientId===mpSnapshot.clientId);if(me)mp.setReady(!me.ready);});$('mpDealer').addEventListener('change',e=>mp.setDealer(Number(e.target.value)));$('mpAIDifficulty').addEventListener('change',e=>{if(mpSnapshot?.isHost)mp.setAIDifficulty(e.target.value);});$('fillAI').addEventListener('click',()=>{if(!mpSnapshot?.isHost)return;const empty=mpSnapshot.room.seats.filter(s=>!s.clientId&&!s.isAI).length;for(let i=0;i<empty;i++)mp.addAI();});$('startRoom').addEventListener('click',()=>mp.startGame());$('playAgain').addEventListener('click',()=>{if(mpKind!=='online'||!mpSnapshot?.isHost||!mpSnapshot.view?.roundOver)return;$('playAgain').disabled=true;mp.requestRematch();});$('inviteLink').addEventListener('click',()=>{ $('inviteLink').select(); });$('requestAiybai').addEventListener('click',()=>{if(mp&&mpSnapshot?.view?.aiybaiWindowOpen&&mpSnapshot.view.currentPlayer===mpSnapshot.seat)mp.requestAiybai();});$('acceptAiybai').addEventListener('click',()=>{if(mp)mp.answerAiybai(true);});$('declineAiybai').addEventListener('click',()=>{if(mp)mp.answerAiybai(false);});$('copyRoomCode').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(code)await copyLobbyText(code,`Room code ${code} copied. Share it with your friends.`);});$('shareRoom').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(!code||mpKind!=='online')return;const url=roomInviteURL(code);if(navigator.share){try{await navigator.share({title:'Join my BONDI room',text:`Join my BONDI room ${code}`,url});$('shareStatus').textContent='Invite shared.';return;}catch(e){if(e.name==='AbortError')return;}}await copyLobbyText(url,'Invite link copied. Send it to your friends.');});$('copyFullLog').addEventListener('click',async()=>{let text;if(appMode==='solo')text=fullGameLog.join('\n');else{const view=currentMPView(),room=mpSnapshot?.room;text=['BONDI MULTIPLAYER GAME LOG','Build: Stage 5.15A','Engine: Stage 4.5',`AI difficulty: ${(room?.aiDifficulty||'hard').toUpperCase()}`,`Room: ${room?.code||''}`,`Match: ${Number(room?.matchNumber||1)}`,`Your seat: ${(currentMPSeat()??0)+1}`,'Seats:',...(room?.seats||[]).map((seat,i)=>`Seat ${i+1}: ${seat.name}${seat.aiTakeover?' (AI takeover after leaving)':seat.isAI?' (AI)':''}`),'',...multiplayerNamedLogs(view?.log||[],room),...(view?.roundOver?['','MATCH RESULTS',...BondiMultiplayerCore.matchResults(room,view).players.map(p=>`${p.rank}. ${p.name} (Seat ${p.seat+1}) · Gave ${p.bondiGiven} Bondi · Received ${p.bondiReceived} Bondi${p.lastHolding?' · Last holding cards':''}`),`Bondi events: ${BondiMultiplayerCore.matchResults(room,view).bondiEvents}`,'','CURRENT ROOM TOTALS',`${room?.roomStats?.matchesPlayed||0} matches`,...(room?.seats||[]).map((seat,i)=>`${seat.name} (Seat ${i+1}) · First ${room?.roomStats?.firstPlaces?.[i]||0} · Last ${room?.roomStats?.lastPlaces?.[i]||0} · Bondi given ${room?.roomStats?.bondiGiven?.[i]||0} · Received ${room?.roomStats?.bondiReceived?.[i]||0}`)]:[])].join('\n');}try{await navigator.clipboard.writeText(text);$('copyStatus').textContent='Game log copied.';}catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();$('copyStatus').textContent='Game log copied.';}setTimeout(()=>$('copyStatus').textContent='',2500);});window.addEventListener('beforeunload',()=>{try{if(mp&&mp.room&&mpKind!=='online')mp.leave(true);}catch(e){}});const inviteCode=(window.location?.search||'').match(/[?&]room=([A-Z0-9]{6})(?:&|$)/i)?.[1];
+$('soloHome').addEventListener('click',()=>showScreen('home'));$('multiBack').addEventListener('click',()=>showScreen('home'));$('newGame').addEventListener('click',startSolo);$('clear').addEventListener('click',()=>{selected=null;if(appMode==='solo')renderSolo();else renderMultiplayerGame();});$('play').addEventListener('click',()=>{if(selected)playSelected(selected)});$('createRoom').addEventListener('click',()=>{try{ensureMP().createRoom($('playerName').value);}catch(e){onMPError(e.message);}});$('joinCode').addEventListener('input',e=>e.target.value=BondiMultiplayer.normalizeCode(e.target.value));$('transportMode').addEventListener('change',showTransportMode);$('onlineServer').addEventListener('input',refreshResumeButton);for(const id of ['retryLobby','retryGame'])$(id).addEventListener('click',()=>{try{if(mpKind==='online')mp.retryConnection();}catch(e){onMPError(e.message);}});$('resumeRoom').addEventListener('click',()=>{try{ensureMP().resumeRoom();}catch(e){onMPError(e.message);}});$('joinRoom').addEventListener('click',()=>{try{ensureMP().joinRoom($('playerName').value,$('joinCode').value);}catch(e){onMPError(e.message);}});$('leaveRoom').addEventListener('click',leaveMultiplayer);$('leaveGame').addEventListener('click',leaveMultiplayer);$('readyButton').addEventListener('click',()=>{const room=mpSnapshot.room,me=room.seats.find(s=>s.clientId===mpSnapshot.clientId);if(me)mp.setReady(!me.ready);});$('mpDealer').addEventListener('change',e=>mp.setDealer(Number(e.target.value)));$('mpAIDifficulty').addEventListener('change',e=>{if(mpSnapshot?.isHost)mp.setAIDifficulty(e.target.value);});$('fillAI').addEventListener('click',()=>{if(!mpSnapshot?.isHost)return;const empty=mpSnapshot.room.seats.filter(s=>!s.clientId&&!s.isAI).length;for(let i=0;i<empty;i++)mp.addAI();});$('startRoom').addEventListener('click',()=>mp.startGame());$('playAgain').addEventListener('click',()=>{if(mpKind!=='online'||!mpSnapshot?.isHost||!mpSnapshot.view?.roundOver)return;$('playAgain').disabled=true;mp.requestRematch();});$('inviteLink').addEventListener('click',()=>{ $('inviteLink').select(); });$('requestAiybai').addEventListener('click',()=>{if(mp&&mpSnapshot?.view?.aiybaiWindowOpen&&mpSnapshot.view.currentPlayer===mpSnapshot.seat)mp.requestAiybai();});$('acceptAiybai').addEventListener('click',()=>{if(mp)mp.answerAiybai(true);});$('declineAiybai').addEventListener('click',()=>{if(mp)mp.answerAiybai(false);});$('copyRoomCode').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(code)await copyLobbyText(code,`Room code ${code} copied. Share it with your friends.`);});$('shareRoom').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(!code||mpKind!=='online')return;const url=roomInviteURL(code);if(navigator.share){try{await navigator.share({title:'Join my BONDI room',text:`Join my BONDI room ${code}`,url});$('shareStatus').textContent='Invite shared.';return;}catch(e){if(e.name==='AbortError')return;}}await copyLobbyText(url,'Invite link copied. Send it to your friends.');});$('copyFullLog').addEventListener('click',async()=>{let text;if(appMode==='solo')text=fullGameLog.join('\n');else{const view=currentMPView(),room=mpSnapshot?.room;text=['BONDI MULTIPLAYER GAME LOG','Build: Stage 5.15A.1','Engine: Stage 4.5',`AI difficulty: ${(room?.aiDifficulty||'hard').toUpperCase()}`,`Room: ${room?.code||''}`,`Match: ${Number(room?.matchNumber||1)}`,`Your seat: ${(currentMPSeat()??0)+1}`,'Seats:',...(room?.seats||[]).map((seat,i)=>`Seat ${i+1}: ${seat.name}${seat.aiTakeover?' (AI takeover after leaving)':seat.isAI?' (AI)':''}`),'',...multiplayerNamedLogs(view?.log||[],room),...(view?.roundOver?['','MATCH RESULTS',...BondiMultiplayerCore.matchResults(room,view).players.map(p=>`${p.rank}. ${p.name} (Seat ${p.seat+1}) · Gave ${p.bondiGiven} Bondi · Received ${p.bondiReceived} Bondi${p.lastHolding?' · Last holding cards':''}`),`Bondi events: ${BondiMultiplayerCore.matchResults(room,view).bondiEvents}`,'','CURRENT ROOM TOTALS',`${room?.roomStats?.matchesPlayed||0} matches`,...(room?.seats||[]).map((seat,i)=>`${seat.name} (Seat ${i+1}) · First ${room?.roomStats?.firstPlaces?.[i]||0} · Last ${room?.roomStats?.lastPlaces?.[i]||0} · Bondi given ${room?.roomStats?.bondiGiven?.[i]||0} · Received ${room?.roomStats?.bondiReceived?.[i]||0}`)]:[])].join('\n');}try{await navigator.clipboard.writeText(text);$('copyStatus').textContent='Game log copied.';}catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();$('copyStatus').textContent='Game log copied.';}setTimeout(()=>$('copyStatus').textContent='',2500);});window.addEventListener('beforeunload',()=>{try{if(mp&&mp.room&&mpKind!=='online')mp.leave(true);}catch(e){}});const inviteCode=(window.location?.search||'').match(/[?&]room=([A-Z0-9]{6})(?:&|$)/i)?.[1];
 if(inviteCode){$('joinCode').value=inviteCode.toUpperCase();chooseRoomEntry('join');showScreen('multi-setup');}else showScreen('home');
 
 // Installable BONDI is still a web app: offline only covers the public
