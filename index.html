@@ -291,6 +291,22 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 #gameArea .selected-summary .hand-preview{margin:0;min-height:22px}
 @media(max-height:740px){#gameArea .selected-summary{margin-bottom:4px}}
 
+
+/* Shuffle/deal cards are illustrations only: never block controls or alter state. */
+#gameArea .deal-animation{position:absolute;inset:0;z-index:15;overflow:hidden;border-radius:inherit;pointer-events:none;isolation:isolate}
+#gameArea .deal-animation.hidden{display:none!important}
+#gameArea .deal-animation::before{content:"";position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle,rgba(6,37,46,.34),transparent 76%);pointer-events:none}
+#gameArea .deal-label{position:absolute;left:50%;top:20%;transform:translateX(-50%);background:rgba(8,34,42,.89);border:1px solid rgba(242,205,139,.73);border-radius:999px;padding:5px 13px;white-space:nowrap;letter-spacing:.09em;color:#ffe5ae;font-size:.72rem;font-weight:850;animation:bondi-deal-label 1s ease-in-out both}
+#gameArea .deck-stack{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-5deg);width:45px;height:62px;border:2px solid #cce3db;border-radius:7px;background:repeating-linear-gradient(45deg,#0d455a 0 5px,#227082 5px 8px);box-shadow:-5px -4px 0 -2px #123b4e,-8px -6px 0 -3px #d0e5e0,0 5px 16px rgba(0,0,0,.42);animation:bondi-deck-stack .92s ease-in-out forwards}
+#gameArea .shuffle-card,#gameArea .flying-card{position:absolute;left:50%;top:50%;width:43px;height:60px;border-radius:7px;border:2px solid #c8ddd8;box-shadow:0 3px 10px rgba(0,0,0,.32);background:repeating-linear-gradient(-45deg,#0d4255 0 5px,#2b7888 5px 8px);backface-visibility:hidden;will-change:transform,opacity}
+#gameArea .shuffle-card{animation:bondi-shuffle .33s ease-in-out var(--shuffle-delay,0ms) both}
+#gameArea .flying-card{animation:bondi-deal-flight .52s cubic-bezier(.23,.7,.29,1) var(--deal-delay,270ms) both}
+@keyframes bondi-shuffle{0%{opacity:0;transform:translate(-50%,-50%) rotate(0)}30%{opacity:1;transform:translate(calc(-50% + var(--shuffle-x,30px)),calc(-50% - 14px)) rotate(var(--shuffle-rot,18deg))}75%{opacity:1;transform:translate(calc(-50% - var(--shuffle-x,30px)),calc(-50% + 8px)) rotate(calc(-1 * var(--shuffle-rot,18deg)))}100%{opacity:0;transform:translate(-50%,-50%) rotate(0)}}
+@keyframes bondi-deck-stack{0%,40%{opacity:1;transform:translate(-50%,-50%) rotate(-5deg)}80%{opacity:1;transform:translate(-50%,-50%) rotate(6deg)}100%{opacity:0;transform:translate(-50%,-50%) scale(.88)}}
+@keyframes bondi-deal-flight{0%{opacity:0;transform:translate(-50%,-50%) scale(.9) rotate(-10deg)}8%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--deal-x,0px)),calc(-50% + var(--deal-y,0px))) scale(.66) rotate(var(--deal-rot,0deg))}}
+@keyframes bondi-deal-label{0%,35%{opacity:1}70%{opacity:.94}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){#gameArea .deal-animation{display:none!important}#gameArea .deck-stack,#gameArea .shuffle-card,#gameArea .flying-card,#gameArea .deal-label{animation:none!important}}
+
 </style></head>
 <body><header><h1>BONDI</h1><p>Stage 5.15A · Modern mobile game · Hard AI 4.5</p></header>
 <main>
@@ -394,11 +410,12 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
  <div class="table-heading"><div><span class="table-eyebrow">CURRENT AIY</span><h2>އަތް · Aiy</h2></div><span class="table-round-label" id="aiyProgress">0 / 4</span></div>
  <div id="status" class="status table-status" role="status">Starting game…</div>
  <div class="turn-notice hidden" id="turnNotice" role="status" aria-live="polite"></div>
- <div class="table-arena">
+ <div class="table-arena" id="tableArena">
   <div class="table-felt" aria-hidden="true"><div class="table-watermark">B</div></div>
   <div id="seats" class="seats table-seats" aria-label="Players around the table"></div>
   <div id="aiy" class="aiy table-aiy" aria-label="Cards played in the current Aiy"></div>
   <div id="lead" class="note table-lead" aria-live="off"></div>
+  <div id="dealAnimation" class="deal-animation hidden" aria-hidden="true"></div>
  </div>
 </section>
 <section class="panel game-hand-dock"><div class="row hand-heading"><div class="hand-heading-title"><strong id="handTitle">Your Aiybai</strong><span class="note" id="handNote"></span></div><label class="hand-layout-control" for="handLayout">Hand shape <select id="handLayout" aria-label="Aiybai card layout"><option value="straight">Straight</option><option value="arc">Arc</option></select></label></div><div class="hand-turn" id="handTurnStatus" role="status" aria-live="polite">Waiting for your turn…</div><div id="hand" class="cards"></div><div class="selected-summary"><span id="selectedCardMini" class="selected-mini-card hidden" aria-hidden="true">—</span><div id="handPreview" class="hand-preview" role="status" aria-live="off"></div></div><div class="play-actions"><button class="primary" id="play" disabled>Play selected card</button><button id="clear">Clear</button></div><p class="note" id="hint">Tap once to select; double-tap the same card to play. Swipe sideways to browse your Aiybai.</p></section>
