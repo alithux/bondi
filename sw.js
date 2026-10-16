@@ -1,8 +1,8 @@
-/* BONDI Stage 5.15a — offline solo mode + installable app.
+/* BONDI Stage 5.15a1 — offline solo mode + installable app.
    Only publicly shipped static files are cached. Room snapshots, WebSocket
    traffic, credentials, and opponent Aiybai never enter this cache. */
 'use strict';
-const CACHE_NAME = 'bondi-static-v5.15a';
+const CACHE_NAME = 'bondi-static-v5.15a1';
 const APP_SHELL = './';
 const PRECACHE = [
   APP_SHELL,
@@ -10,12 +10,12 @@ const PRECACHE = [
   './icon-192.png',
   './icon-512.png',
   './apple-touch-icon.png',
-  ...Array.from({length:10},(_,i)=>'./source-part-'+String(i+1).padStart(2,'0')+'.js?v=5.15a'),
-  './game-engine.js?v=5.15a',
-  './multiplayer-core.js?v=5.15a',
-  './multiplayer-browser.js?v=5.15a',
-  './online-config.js?v=5.15a',
-  './online-client.js?v=5.15a'
+  ...Array.from({length:10},(_,i)=>'./source-part-'+String(i+1).padStart(2,'0')+'.js?v=5.15a1'),
+  './game-engine.js?v=5.15a1',
+  './multiplayer-core.js?v=5.15a1',
+  './multiplayer-browser.js?v=5.15a1',
+  './online-config.js?v=5.15a1',
+  './online-client.js?v=5.15a1'
 ];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME)
