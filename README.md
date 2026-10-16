@@ -201,3 +201,10 @@ Starting a new Solo vs AI game now briefly **shuffles a stack of card backs in t
 The animation is **cosmetic only**. It does not alter randomness, cards, dealer/right-hand opening turn, AI, Aiybai consent, WebSocket state, or the existing Aiy review/turn timings. It does not intercept taps. The true game hand is present immediately, and the overlay clears itself after about **1.4 seconds**. Navigating away cancels the overlay. Ordinary game updates, same-room reconnections, refreshes, and mid-game restores **do not replay** the deal. People using the OS/browser **Reduce Motion** preference see the game instantly without the visual animation.
 
 Implemented with lightweight local HTML and CSS keyframes, so there are no external files or network dependencies and offline Solo still works. The PWA cache is `bondi-static-v5.15a1`. Test via `node deal-animation.test.js`, followed by the complete regression suite.
+
+
+## Stage 5.15A.2 — iPhone shuffle visibility fix
+
+On some phones the initial shuffle was invisible because the game immediately skipped the entire overlay when the operating system requested **Reduce Motion**. The original visual was also very short (~1.4 seconds) and understated. The revised shuffling and dealing uses higher contrast card backs and a clearer status label, remains visible around **2.75 seconds**, and shows a static **CARDS DEALT** deck/message for about 1.15 seconds if Reduce Motion is enabled. The animation never disables card input or changes the real game/AI timings.
+
+An explicit **Menu → Replay deal animation** command lets players verify the effect during a game without reshuffling the actual Aiybai or changing turn order. The command displays only anonymous backs. On iPhone, the animation requires **Settings → Accessibility → Motion → Reduce Motion** to be off; otherwise the static alternative appears. When updating an installed BONDI web app, reopen it while online to receive the new `5.15a2` PWA cache. Test: `node deal-animation.test.js` plus all existing UI and engine tests.
