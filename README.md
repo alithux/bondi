@@ -181,3 +181,14 @@ In **Arc** mode, the entire Aiybai (including a 26-card two-player hand) fits ac
 When another player establishes the lead suit for the current **އަތް (Aiy)**, matching cards are visually highlighted. In **Straight** mode BONDI automatically scrolls to the first matching suit card **once per new Aiy**, not on every game redraw; in **Arc** mode all cards are already visible so the matching suit is highlighted without scrolling. No automatic scrolling occurs when the player cannot follow suit. Manual scrolling and selected-card state are preserved across ordinary redraws.
 
 This is a purely local interface change for Solo vs AI and multiplayer: no rule, turn order, opponent Aiybai, Aiy pacing, server or database change. The installed PWA cache updates to `5.14.3`. Tests cover the full 13/26-card fan, finger selection without auto-play, the Play button, suit focus and no repeated jump.
+
+
+## Stage 5.15A — Premium mobile gameplay screen
+
+BONDI's solo and multiplayer gameplay screens now use the same **modern mobile-first, full-height layout**. The top HUD provides a compact BONDI title, solo/room identity, connectivity indicator, current turn, and leading suit. The middle is a flexible emerald felt table with circular player initials, card counts, highlighted active player, and Aiy card slots. The bottom is a fixed **thumb-friendly Aiybai dock**, with the saved Straight/Arc choice, full-hand fan / swipe selection, a visible selected-card preview, large Play button, and smaller Clear button. The game has special adjustments for narrow (320px) and short screens, safe areas and wider devices.
+
+The menu at the top right exposes the **existing** Solo New game/Home, multiplayer Leave/Reconnect and game-log/export actions rather than leaving them above the playing field. Its menu is a native accessible disclosure; long notes and logs no longer interrupt active play. Reconnecting/turn/lead-suit states are powered by actual game snapshots. Matching suit highlighting and automatic straight-hand focus are preserved. Aiybai consent and match result panels stay accessible as overlays in this first stage; richer dialogs and animation are planned for Stage 5.15B/C.
+
+This is a **frontend-only** update: no BONDI rule, AI model, އަތް (Aiy) resolution timing, Aiybai transfer, online multiplayer protocol, Render server, or PostgreSQL change. It reuses existing card buttons and touch selection; hidden opponent cards remain private. No third-party fonts or remote images are required, so offline solo continues working. The offline cache updates to `5.15a`.
+
+Testing: `node modern-game-screen.test.js` plus the full 18 existing test suite, including Aiy review, touch hand selection, reconnect and persistence. The aesthetic uses initials rather than real profile photos until profile/avatar consent exists.
