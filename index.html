@@ -292,20 +292,21 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 @media(max-height:740px){#gameArea .selected-summary{margin-bottom:4px}}
 
 
-/* Shuffle/deal cards are illustrations only: never block controls or alter state. */
-#gameArea .deal-animation{position:absolute;inset:0;z-index:15;overflow:hidden;border-radius:inherit;pointer-events:none;isolation:isolate}
+/* Stage 5.15A.2 — highly visible, nonblocking phone shuffle and deal.
+   All the cards are BACKS; nothing about a player's private Aiybai leaks. */
+#gameArea .deal-animation{position:absolute;inset:0;z-index:20;overflow:hidden;border-radius:inherit;pointer-events:none;isolation:isolate;background:radial-gradient(ellipse at center,rgba(3,26,36,.43),rgba(3,26,36,.1) 83%,transparent)}
 #gameArea .deal-animation.hidden{display:none!important}
-#gameArea .deal-animation::before{content:"";position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle,rgba(6,37,46,.34),transparent 76%);pointer-events:none}
-#gameArea .deal-label{position:absolute;left:50%;top:20%;transform:translateX(-50%);background:rgba(8,34,42,.89);border:1px solid rgba(242,205,139,.73);border-radius:999px;padding:5px 13px;white-space:nowrap;letter-spacing:.09em;color:#ffe5ae;font-size:.72rem;font-weight:850;animation:bondi-deal-label 1s ease-in-out both}
-#gameArea .deck-stack{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-5deg);width:45px;height:62px;border:2px solid #cce3db;border-radius:7px;background:repeating-linear-gradient(45deg,#0d455a 0 5px,#227082 5px 8px);box-shadow:-5px -4px 0 -2px #123b4e,-8px -6px 0 -3px #d0e5e0,0 5px 16px rgba(0,0,0,.42);animation:bondi-deck-stack .92s ease-in-out forwards}
-#gameArea .shuffle-card,#gameArea .flying-card{position:absolute;left:50%;top:50%;width:43px;height:60px;border-radius:7px;border:2px solid #c8ddd8;box-shadow:0 3px 10px rgba(0,0,0,.32);background:repeating-linear-gradient(-45deg,#0d4255 0 5px,#2b7888 5px 8px);backface-visibility:hidden;will-change:transform,opacity}
-#gameArea .shuffle-card{animation:bondi-shuffle .33s ease-in-out var(--shuffle-delay,0ms) both}
-#gameArea .flying-card{animation:bondi-deal-flight .52s cubic-bezier(.23,.7,.29,1) var(--deal-delay,270ms) both}
+#gameArea .deal-label{position:absolute;left:50%;top:17%;transform:translateX(-50%);z-index:3;background:#123b48;border:1px solid #f1cf87;border-radius:999px;padding:9px 15px;white-space:nowrap;letter-spacing:.085em;color:#ffe9b9;font-size:clamp(.72rem,2.8vw,.93rem);font-weight:900;box-shadow:0 6px 16px rgba(0,0,0,.44),0 0 24px rgba(248,203,115,.2)}
+#gameArea .deck-stack{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-5deg);width:54px;height:74px;border:2px solid #f4dfaf;border-radius:9px;background:repeating-linear-gradient(45deg,#0c4961 0 6px,#2c7a89 6px 10px);box-shadow:-6px -5px 0 -2px #164d5d,-9px -8px 0 -3px #e7e1cf,0 5px 19px rgba(0,0,0,.56);animation:bondi-deck-stack 2.15s ease-in-out both}
+#gameArea .shuffle-card,#gameArea .flying-card{position:absolute;left:50%;top:50%;width:50px;height:68px;border-radius:8px;border:2px solid #f2dfa8;box-shadow:0 4px 12px rgba(0,0,0,.4),inset 0 0 0 2px rgba(14,64,79,.5);background:repeating-linear-gradient(-45deg,#0c445b 0 6px,#2a8292 6px 10px);backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:transform,opacity}
+#gameArea .shuffle-card{animation:bondi-shuffle .48s ease-in-out var(--shuffle-delay,0ms) both}
+#gameArea .flying-card{animation:bondi-deal-flight .65s cubic-bezier(.23,.7,.29,1) var(--deal-delay,700ms) both}
 @keyframes bondi-shuffle{0%{opacity:0;transform:translate(-50%,-50%) rotate(0)}30%{opacity:1;transform:translate(calc(-50% + var(--shuffle-x,30px)),calc(-50% - 14px)) rotate(var(--shuffle-rot,18deg))}75%{opacity:1;transform:translate(calc(-50% - var(--shuffle-x,30px)),calc(-50% + 8px)) rotate(calc(-1 * var(--shuffle-rot,18deg)))}100%{opacity:0;transform:translate(-50%,-50%) rotate(0)}}
-@keyframes bondi-deck-stack{0%,40%{opacity:1;transform:translate(-50%,-50%) rotate(-5deg)}80%{opacity:1;transform:translate(-50%,-50%) rotate(6deg)}100%{opacity:0;transform:translate(-50%,-50%) scale(.88)}}
-@keyframes bondi-deal-flight{0%{opacity:0;transform:translate(-50%,-50%) scale(.9) rotate(-10deg)}8%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--deal-x,0px)),calc(-50% + var(--deal-y,0px))) scale(.66) rotate(var(--deal-rot,0deg))}}
-@keyframes bondi-deal-label{0%,35%{opacity:1}70%{opacity:.94}100%{opacity:0}}
-@media(prefers-reduced-motion:reduce){#gameArea .deal-animation{display:none!important}#gameArea .deck-stack,#gameArea .shuffle-card,#gameArea .flying-card,#gameArea .deal-label{animation:none!important}}
+@keyframes bondi-deck-stack{0%,35%{opacity:1;transform:translate(-50%,-50%) rotate(-6deg) scale(1)}55%{opacity:1;transform:translate(-50%,-50%) rotate(7deg) scale(1.07)}85%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(7deg) scale(.8)}}
+@keyframes bondi-deal-flight{0%{opacity:0;transform:translate(-50%,-50%) scale(1) rotate(-10deg)}9%{opacity:1}79%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--deal-x,0px)),calc(-50% + var(--deal-y,0px))) scale(.66) rotate(var(--deal-rot,0deg))}}
+/* Reduced Motion shows a static deck and label instead of an empty screen. */
+@media(prefers-reduced-motion:reduce){#gameArea .deck-stack{animation:none!important}#gameArea .shuffle-card,#gameArea .flying-card{display:none!important;animation:none!important}}
+@media(max-width:360px){#gameArea .deal-label{font-size:.7rem;padding:7px 10px}#gameArea .shuffle-card,#gameArea .flying-card{width:44px;height:61px}}
 
 </style></head>
 <body><header><h1>BONDI</h1><p>Stage 5.15A.1 · Shuffle & deal animation · Hard AI 4.5</p></header>
