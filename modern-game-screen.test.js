@@ -105,6 +105,7 @@ for(let i=0;i<3;i++)room=Core.applyLobbyAction(room,{type:'ADD_AI',clientId:'hos
 room=Core.applyLobbyAction(room,{type:'SET_READY',clientId:'host',ready:true});
 const started=Core.startGame(room,Engine,()=>0.37);
 room=started.room;
+room.dealUntil=Date.now()+2750;
 const view=Core.projectGame(room,started.game,'host');
 view.currentPlayer=0;view.resolutionPause=false;
 const update=(status='connected')=>client.options.onUpdate({room,view,seat:0,isHost:true,clientId:'host',connectionStatus:status});
@@ -113,7 +114,7 @@ assert.equal(document.body.classList.contains('in-game'),true,'online multiplaye
 assert.equal($('hudRoom').textContent,'Room BD1234');
 assert.equal($('hudConnection').textContent,'● Online');
 assert.equal($('gameArea').classList.contains('is-dealing'),true,'other devices also wait for deal completion');
-timers.at(-1)();
+room.dealUntil=0;update(); // server publishes the end of the deal
 assert.match($('hudTurn').textContent,/Your turn/);
 assert.match($('seats').innerHTML,/data-position="bottom"/);
 assert.equal(($('aiy').innerHTML.match(/class="played awaiting"/g)||[]).length,4);
