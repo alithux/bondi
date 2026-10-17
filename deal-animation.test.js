@@ -14,7 +14,7 @@ assert.doesNotMatch(html,/@media\(prefers-reduced-motion:reduce\)\{#gameArea \.d
 assert.match(html,/id="replayDeal"/,'manual replay is available');
 assert.match(html,/@keyframes bondi-shuffle/);
 assert.match(html,/@keyframes bondi-deal-flight/);
-assert.match(html,/Stage 5\.15C\.1 · Animated card plays/);
+assert.match(html,/Stage 5\.15C\.2 · Aiybai request visibility/);
 
 function boot(reduceMotion=false){
  class ClassList{
