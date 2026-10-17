@@ -82,7 +82,7 @@ assert.equal(t.overlay.children.length,0,'baseline produces no historical flight
 watch([a]);
 assert.equal(t.overlay.children.length,1,'first real play animates');
 assert.equal(t.overlay.children[0].className,'card-flight red','hearts render in red');
-assert.equal(t.overlay.children[0].style.values['--flight-dx'],'172.5px','flight moves toward Aiy');
+assert.equal(t.overlay.children[0].style.values['--flight-dx'],'135px','flight moves from the mocked seat center to the mocked Aiy center');
 assert.match(t.overlay.children[0].innerHTML,/A♥/);
 assert(!t.overlay.children[0].innerHTML.includes('data-card'),'only the publicly played card is shown');
 watch([a]);
