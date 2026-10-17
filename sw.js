@@ -1,8 +1,8 @@
-/* BONDI Stage 5.15c1 — offline solo mode + installable app.
+/* BONDI Stage 5.15c1 + manual Aiybai visibility fix — offline solo mode + installable app.
    Only publicly shipped static files are cached. Room snapshots, WebSocket
    traffic, credentials, and opponent Aiybai never enter this cache. */
 'use strict';
-const CACHE_NAME = 'bondi-static-v5.15c1-bondi-nudge';
+const CACHE_NAME = 'bondi-static-v5.15c1-aiybai-visibility';
 const APP_SHELL = './';
 const PRECACHE = [
   APP_SHELL,
