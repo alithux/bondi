@@ -124,7 +124,7 @@ class FakePeer extends EventEmitter{
 function attach(service){const p=new FakePeer();service.attach(p);return p;}
 function send(peer,action,other={}){peer.write({type:'ACTION',action,...other});}
 async function testOnline(){
- const service=new RoomService({aiDelay:0,resolutionDelay:0});
+ const service=new RoomService({dealMs:0,aiDelay:0,resolutionDelay:0});
  try{
    const h=attach(service);h.write({type:'CREATE',name:'Ayya'});
    const code=h.latest('WELCOME').code;
