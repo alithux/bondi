@@ -1,6 +1,9 @@
-# BONDI Stage 5.15C.1 — Animated card plays · Hard AI 4.5
+# BONDI Stage 5.15C.2 — Discoverable Aiybai requests · Hard AI 4.5
 
 ## Current release
+
+**Stage 5.15C.2** updates the Home Screen app build label and changes every public script URL and the service-worker cache to `5.15c2`, so installed iPhones fetch the newest Request Aiybai UI rather than displaying the old `5.15C.1` build identifier. Reopen BONDI while online to update it; game rules and online-server protocol are unchanged.
+
 
 **Aiybai request visibility fix:** The Game menu now always lists Request Aiybai during multiplayer, with an explanation when it is unavailable. After a completed Aiy, when it is your turn to lead and the server opens the request window, a compact **Request [player]’s Aiybai** button appears by your own hand. Tapping it opens the confirmation panel; it does **not** send a request until you explicitly choose Ask. Cancel keeps the game moving. No panel appears automatically at the start of a game or during unrelated turns. Incoming Agree/Decline requests, BONDI rules, and the multiplayer server protocol are unchanged. The updated PWA cache helps iPhone-installed versions receive the fix online.
 
