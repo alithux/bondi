@@ -60,9 +60,10 @@ class FakeClient{
 const win={BONDI_ONLINE_SERVER_URL:'https://bondi-online.onrender.com',
  location:{origin:'https://alithux.github.io',pathname:'/bondi/',search:'',protocol:'https:'},
  addEventListener(){}};
+const timers=[];
 const ctx=vm.createContext({
  window:win,document,localStorage:storage,sessionStorage:storage,
- navigator:{},console,Date,setInterval:()=>0,setTimeout:()=>0,clearTimeout:()=>{},
+ navigator:{},console,Date,setInterval:()=>0,setTimeout:fn=>{timers.push(fn);return timers.length;},clearTimeout:()=>{},
  BondiEngineReady:{then:fn=>fn()},BondiEngine:Engine,
  BondiMultiplayer:{normalizeCode:v=>v.toUpperCase(),MultiplayerClient:FakeClient},
  BondiOnline:{serverWebSocketURL:()=> 'wss://bondi-online.onrender.com/ws',OnlineMultiplayerClient:FakeClient},
@@ -75,6 +76,8 @@ assert.equal(document.body.classList.contains('in-game'),false,'first-time setti
 $('players').value='4';$('dealer').value='1';$('aiDifficulty').value='hard';
 $('newGame').click();
 assert.equal(document.body.classList.contains('in-game'),true,'after dealing a mobile gameplay screen is active');
+assert.equal($('gameArea').classList.contains('is-dealing'),true,'the initial hand is covered');
+timers.at(-1)(); // Complete the opening deal before testing live controls.
 assert.equal($('hudRoom').textContent,'Solo · 4 players');
 assert.equal($('hudConnection').textContent,'● Solo');
 assert.match($('hudTurn').textContent,/Your turn/);
@@ -109,6 +112,8 @@ update();
 assert.equal(document.body.classList.contains('in-game'),true,'online multiplayer uses same immersive view');
 assert.equal($('hudRoom').textContent,'Room BD1234');
 assert.equal($('hudConnection').textContent,'● Online');
+assert.equal($('gameArea').classList.contains('is-dealing'),true,'other devices also wait for deal completion');
+timers.at(-1)();
 assert.match($('hudTurn').textContent,/Your turn/);
 assert.match($('seats').innerHTML,/data-position="bottom"/);
 assert.equal(($('aiy').innerHTML.match(/class="played awaiting"/g)||[]).length,4);
