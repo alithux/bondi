@@ -29,7 +29,7 @@ while(!state.lastResolution&&!state.roundOver&&plays++<8){
 }
 assert(state.lastResolution,'a real Aiy must have resolved');
 assert.equal(state.trick.length,0,'Aiy completely ended');
-const service=new RoomService({aiDelay:100000});
+const service=new RoomService({dealMs:0,aiDelay:100000});
 const entry=service._roomEntry(started.room);
 entry.game=state;
 service.rooms.set(started.room.code,entry);
