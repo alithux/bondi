@@ -6,7 +6,7 @@ const Engine=require('./online-server/load-engine.js');
 const Core=require('./multiplayer-core.js');
 const html=fs.readFileSync(__dirname+'/index.html','utf8');
 const script=html.slice(html.indexOf('<script>')+8,html.lastIndexOf('</script>'))
- .replace('function showScreen(mode){','window.__observe=observePlayedCards;window.__stopFlights=stopCardFlights;function showScreen(mode){');
+ .replace('function showScreen(mode){','window.__bondi=observeBondi;window.__stopNudge=stopBondiNudge;window.__observe=observePlayedCards;window.__stopFlights=stopCardFlights;function showScreen(mode){');
 assert.match(html,/id="cardFlights" class="card-flights"/,'separate overlay exists');
 assert.match(html,/#gameArea \.card-flights\{[^}]*pointer-events:none/,'flights never block taps');
 assert.match(html,/bondi-card-flight 460ms/,'flight completes inside the existing one-second review');
@@ -115,3 +115,30 @@ reduced.win.__observe([],'solo:1',false);
 reduced.win.__observe([a],'solo:1',false);
 assert.equal(reduced.overlay.children.length,0,'Reduce Motion does not fly cards');
 console.log('PASS per-card seat-to-Aiy motion, overlapping AI turns, 1-second review, reconnect safety and accessibility');
+
+// Bondi feedback is tied to a newly resolved public Aiy, not object identity.
+const n=boot(),arena=n.$('tableArena');
+const playing={trick:[a],lastResolution:null};
+const resolved={trick:[],lastResolution:{type:'bondi',cards:[a,b]}};
+const normal={trick:[],lastResolution:{type:'normal',cards:[a,b]}};
+n.win.__bondi(resolved,'multi:1');
+assert(!arena.classList.contains('bondi-nudge'),'restored Bondi does not nudge');
+n.win.__bondi(playing,'multi:1');n.win.__bondi(normal,'multi:1');
+assert(!arena.classList.contains('bondi-nudge'),'normal Aiy does not nudge');
+n.win.__bondi(playing,'multi:1');n.win.__bondi(resolved,'multi:1');
+assert(arena.classList.contains('bondi-nudge'),'new Bondi nudges table');
+const jobs=n.tasks.size;
+n.win.__bondi(resolved,'multi:1');assert.equal(n.tasks.size,jobs,'duplicate snapshot does not restart effect');
+for(const [id,fn] of [...n.tasks]){fn();n.tasks.delete(id);}
+assert(!arena.classList.contains('bondi-impact'),'effect clears after timeout');
+n.win.__bondi(playing,'multi:1');n.win.__bondi(resolved,'multi:1');
+assert(arena.classList.contains('bondi-nudge'),'identical cards in a later Bondi still nudge');
+n.win.__bondi(playing,'multi:1',false);
+assert(!arena.classList.contains('bondi-nudge'),'disconnect cancels motion');
+n.win.__bondi(resolved,'multi:1');assert(!arena.classList.contains('bondi-nudge'),'reconnect establishes baseline');
+const quiet=boot(true);
+quiet.win.__bondi(playing,'solo:2');quiet.win.__bondi(resolved,'solo:2');
+assert(!quiet.$('tableArena').classList.contains('bondi-nudge'),'Reduce Motion disables shake');
+assert(quiet.$('tableArena').classList.contains('bondi-impact'),'Reduce Motion gets a static highlight');
+quiet.win.__stopNudge();assert(!quiet.$('tableArena').classList.contains('bondi-impact'),'navigation cleans up');
+console.log('PASS Bondi nudge, deduplication, repeated Bondi, reconnect and reduced motion');
