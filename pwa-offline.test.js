@@ -84,14 +84,14 @@ async function emit(name,request){
  records.set('bondi-static-v5.11',new Map());
  await emit('install');
  assert(skip,'activate newly installed service worker');
- assert(records.has('bondi-static-v5.15c1-metadata1'));
- assert(records.get('bondi-static-v5.15c1-metadata1').size>=20,'entire public game shell is cached');
+ assert(records.has('bondi-static-v5.15c1-manual-aiybai'));
+ assert(records.get('bondi-static-v5.15c1-manual-aiybai').size>=20,'entire public game shell is cached');
  await emit('activate');
  assert(claimed,'new worker controls future navigations');
  assert(deletes.includes('bondi-static-v5.11'));
  const scripts=[...html.matchAll(/<script src="([^"]+)"/g)].map(m=>m[1]);
  for(const script of scripts){
-  assert(records.get('bondi-static-v5.15c1-metadata1').has(resolve(script)),script+' needs an offline copy');
+  assert(records.get('bondi-static-v5.15c1-manual-aiybai').has(resolve(script)),script+' needs an offline copy');
  }
  const offlinePage=await emit('fetch',{url:scope+'?room=ABC123',method:'GET',mode:'navigate'});
  assert(offlinePage&&offlinePage.source==='cache','offline navigation loads cached BONDI page');
