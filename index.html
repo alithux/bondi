@@ -329,7 +329,7 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 @media(prefers-reduced-motion:reduce){#gameArea .card-flight{animation:none!important;display:none!important}#gameArea .table-aiy .played.arriving .face{opacity:1}}
 
 </style></head>
-<body><header><h1>BONDI</h1><p>Stage 5.15A.3 · Cards hidden until dealt · Hard AI 4.5</p></header>
+<body><header><h1>BONDI</h1><p>Stage 5.15C.1 · Animated card plays · Hard AI 4.5</p></header>
 <main>
 <section class="panel" id="homePanel"><strong>Choose how to play</strong><p class="note">Play solo or with friends. The confirmed BONDI rules remain unchanged.</p>
 <p id="offlineNotice" class="offline-notice hidden" role="status">You are offline. Solo vs AI works without internet after BONDI has loaded online once. Multiplayer needs an internet connection.</p>
@@ -444,7 +444,7 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 <section class="panel game-hand-dock"><div class="row hand-heading"><div class="hand-heading-title"><strong id="handTitle">Your Aiybai</strong><span class="note" id="handNote"></span></div><label class="hand-layout-control" for="handLayout">Hand shape <select id="handLayout" aria-label="Aiybai card layout"><option value="straight">Straight</option><option value="arc">Arc</option></select></label></div><div class="hand-turn" id="handTurnStatus" role="status" aria-live="polite">Waiting for your turn…</div><div id="hand" class="cards"></div><div class="selected-summary"><span id="selectedCardMini" class="selected-mini-card hidden" aria-hidden="true">—</span><div id="handPreview" class="hand-preview" role="status" aria-live="off"></div></div><div class="play-actions"><button class="primary" id="play" disabled>Play selected card</button><button id="clear">Clear</button></div><p class="note" id="hint">Tap once to select; double-tap the same card to play. Swipe sideways to browse your Aiybai.</p></section>
 </div>
 </main>
-<script src="source-part-01.js?v=5.15a3"></script><script src="source-part-02.js?v=5.15a3"></script><script src="source-part-03.js?v=5.15a3"></script><script src="source-part-04.js?v=5.15a3"></script><script src="source-part-05.js?v=5.15a3"></script><script src="source-part-06.js?v=5.15a3"></script><script src="source-part-07.js?v=5.15a3"></script><script src="source-part-08.js?v=5.15a3"></script><script src="source-part-09.js?v=5.15a3"></script><script src="source-part-10.js?v=5.15a3"></script><script src="game-engine.js?v=5.15a3"></script><script src="multiplayer-core.js?v=5.15a3"></script><script src="multiplayer-browser.js?v=5.15a3"></script><script src="online-config.js?v=5.15a3"></script><script src="online-client.js?v=5.15a3"></script>
+<script src="source-part-01.js?v=5.15c1"></script><script src="source-part-02.js?v=5.15c1"></script><script src="source-part-03.js?v=5.15c1"></script><script src="source-part-04.js?v=5.15c1"></script><script src="source-part-05.js?v=5.15c1"></script><script src="source-part-06.js?v=5.15c1"></script><script src="source-part-07.js?v=5.15c1"></script><script src="source-part-08.js?v=5.15c1"></script><script src="source-part-09.js?v=5.15c1"></script><script src="source-part-10.js?v=5.15c1"></script><script src="game-engine.js?v=5.15c1"></script><script src="multiplayer-core.js?v=5.15c1"></script><script src="multiplayer-browser.js?v=5.15c1"></script><script src="online-config.js?v=5.15c1"></script><script src="online-client.js?v=5.15c1"></script>
 <script>
 BondiEngineReady.then(()=>{
 const $=id=>document.getElementById(id);
@@ -521,12 +521,51 @@ function playDealAnimation(playerCount,viewerSeat=0,onComplete=null){
    if(version===dealAnimationVersion){stopDealAnimation();if(typeof onComplete==='function')onComplete();}
  },2750);
 }
+// Per-view public Aiy history. Never animate a restored/reconnected snapshot.
+function stopCardFlights(){
+ for(const j of cardFlightJobs){clearTimeout(j.timer);j.slot?.classList?.toggle('arriving',false);j.node?.remove?.();}
+ cardFlightJobs=[];$('cardFlights').innerHTML='';visualAiySnapshot=null;
+}
+function flyPlayedCard(entry){
+ if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||typeof document.createElement!=='function')return;
+ const arena=$('tableArena'),layer=$('cardFlights');
+ const seat=$('seats').querySelector?.(`.seat[data-seat="${entry.playerIndex}"]`);
+ const slot=$('aiy').querySelector?.(`.played[data-seat="${entry.playerIndex}"]`);
+ const face=slot?.querySelector?.('.face');
+ if(!seat||!face||!arena?.getBoundingClientRect||!layer?.appendChild)return;
+ const base=arena.getBoundingClientRect(),from=seat.getBoundingClientRect(),to=face.getBoundingClientRect();
+ if(!(base.width>0&&base.height>0&&from.width>0&&to.width>0))return;
+ const x=from.left+from.width/2-base.left,y=from.top+from.height/2-base.top;
+ const dx=to.left+to.width/2-from.left-from.width/2,dy=to.top+to.height/2-from.top-from.height/2;
+ const node=document.createElement('div');
+ node.className='card-flight'+(['♥','♦'].includes(entry.card.suit)?' red':'');
+ node.setAttribute('aria-hidden','true');
+ for(const [name,val] of Object.entries({
+  '--flight-start-x':x+'px','--flight-start-y':y+'px',
+  '--flight-dx':dx+'px','--flight-dy':dy+'px',
+  '--flight-angle':(entry.playerIndex%2?8:-8)+'deg'
+ }))node.style.setProperty(name,val);
+ node.innerHTML=`<span class="flight-index">${escapeHTML(String(entry.card.rank))}${entry.card.suit}</span><span class="flight-pip">${entry.card.suit}</span>`;
+ slot.classList.toggle('arriving',true);layer.appendChild(node);
+ const job={slot,node,timer:null};cardFlightJobs.push(job);
+ job.timer=setTimeout(()=>{slot.classList.toggle('arriving',false);node.remove();cardFlightJobs=cardFlightJobs.filter(j=>j!==job);},480);
+}
+function observePlayedCards(entries,key,reviewing=false){
+ const ids=entries.map(e=>String(e.playerIndex)+':'+String(e.card?.id??(e.card?.rank+e.card?.suit)));
+ const old=visualAiySnapshot;visualAiySnapshot={key,ids,reviewing};
+ if(!old||old.key!==key)return;
+ let prior=old.ids;
+ // AI may immediately lead the next Aiy when the previous review expires.
+ if(old.reviewing&&!reviewing&&entries.length===1)prior=[];
+ if(ids.length!==prior.length+1||!prior.every((id,i)=>id===ids[i]))return;
+ if(appMode==='solo'||appMode==='multi-game')flyPlayedCard(entries[entries.length-1]);
+}
 function showScreen(mode){
  const actualGame=(mode==='multi-game'||(mode==='solo'&&!!soloState&&!soloSettingsOpen));
  if(mode!==appMode)$('gameMenu').open=false;
  appMode=mode;
  document.body?.classList?.toggle?.('in-game',actualGame);
- if(!actualGame){stopDealAnimation();soloDealing=false;multiplayerDealing=false;}
+ if(!actualGame){stopDealAnimation();stopCardFlights();soloDealing=false;multiplayerDealing=false;}
  if(mode==='solo'&&!soloState)soloSettingsOpen=true;
  if(mode!=='multi-game'){setHidden('rematchPanel',true);setHidden('matchResultsPanel',true);setHidden('aiybaiOfferPanel',true);}
  setHidden('homePanel',mode!=='home');
@@ -587,6 +626,10 @@ function renderGame(state,{viewerSeat=0,aiSeats=new Set(),resolutionPause=false,
     ${e?.bondi?'<span class="bondi-indicator">BONDI!</span>':''}
    </div>`;
  }).join('');
+ const gameKey=multiplayer?
+  `multi:${mpSnapshot?.room?.code||'none'}:${mpSnapshot?.room?.matchNumber||0}:${viewerSeat}`:
+  `solo:${soloVisualGame}`;
+ observePlayedCards(shownAiy,gameKey,!!resolutionPause);
  $('lead').textContent=resolutionPause&&state.lastResolution?
    `Lead suit: ${state.lastResolution.leadSuit}${state.lastResolution.type==='bondi'?' · BONDI':''}`:
    state.leadSuit?`Lead suit: ${state.leadSuit}${state.trick.some(e=>e.bondi)?' · Bondi occurred':''}`:
@@ -675,6 +718,7 @@ function renderSolo(){if(!soloState)return;$('logNote').textContent='Solo strate
 function playSoloHuman(cardId){if(!soloState||soloDealing||soloResolutionPause||soloState.roundOver||soloState.currentPlayer!==0)return;const card=soloState.players[0].hand.find(c=>c.id===cardId);if(!card)return;const previous=soloState;const r=BondiEngine.playCard(soloState,0,cardId);selected=null;lastTapCard=null;lastTapAt=0;if(!r.ok){soloState.message=r.error;renderSolo();return}logDecision(0,card,previous);logResult(previous,r.state);const resolved=!!previous.trick.length&&!r.state.trick.length&&!!r.state.lastResolution;soloState=r.state;if(resolved&&!soloState.roundOver)beginSoloAiyReview();else renderSolo();}
 function playSoloAI(){if(!soloState||soloDealing||soloSettingsOpen||soloResolutionPause||soloState.roundOver||soloState.currentPlayer===0)return;const i=soloState.currentPlayer,card=BondiEngine.chooseAICard(soloState,i,soloGameConfig?.difficulty||$('aiDifficulty').value);if(!card)return;const previous=soloState,r=BondiEngine.playCard(soloState,i,card.id);if(r.ok){logDecision(i,card,previous);if((soloGameConfig?.difficulty||$('aiDifficulty').value)==='hard'){const insight=BondiEngine.explainHardAILead(previous,i,card);if(insight)addFullLog(`SUIT MEMORY · ${insight.explanation} (Seat ${insight.nextSeat}, lead ${insight.suit})`);}logResult(previous,r.state);const resolved=!!previous.trick.length&&!r.state.trick.length&&!!r.state.lastResolution;soloState=r.state;selected=null;if(resolved&&!soloState.roundOver)beginSoloAiyReview();else renderSolo();}else{soloState.message=r.error;renderSolo();}}
 function startSolo(){
+ stopCardFlights();soloVisualGame++;
  clearTimeout(aiTimer);clearTimeout(resolutionTimer);soloResolutionPause=false;
  const n=Number($('players').value),d=Math.min(Number($('dealer').value||0),n-1);
  soloGameConfig={playerCount:n,dealer:d,difficulty:$('aiDifficulty').value};
@@ -830,7 +874,8 @@ function onMPUpdate(snapshot){
  const previousRoom=mpSnapshot?.room;
  const freshDeal=previousRoom?.phase==='lobby'&&snapshot.room?.phase==='game'&&
    previousRoom.code===snapshot.room.code&&!!snapshot.view&&!snapshot.view.roundOver;
- mpSnapshot=snapshot;if(freshDeal)multiplayerDealing=true;if(snapshot.room?.phase==='lobby'&&Number(snapshot.room.matchNumber||0)>0){selected=null;lastTapCard=null;lastTapAt=0;wasMyTurn=false;document.title='BONDI · Next game';}if(!snapshot.room){if(snapshot.connectionStatus)$('multiError').textContent=connectionLabel(snapshot.connectionStatus);refreshResumeButton();return;}$('multiError').textContent='';$('mpErrorStatus').textContent='';if(snapshot.room.phase==='lobby'){showScreen('lobby');renderLobby();}else if(snapshot.room.phase==='game'){showScreen('multi-game');renderMultiplayerGame();if(freshDeal)playDealAnimation(snapshot.view?.players?.length,snapshot.seat,()=>{multiplayerDealing=false;if(appMode==='multi-game')renderMultiplayerGame();});}}
+ if(snapshot.room?.phase==='lobby'&&previousRoom?.phase!=='lobby')stopCardFlights();
+ mpSnapshot=snapshot;if(freshDeal){stopCardFlights();multiplayerDealing=true;}if(snapshot.room?.phase==='lobby'&&Number(snapshot.room.matchNumber||0)>0){selected=null;lastTapCard=null;lastTapAt=0;wasMyTurn=false;document.title='BONDI · Next game';}if(!snapshot.room){if(snapshot.connectionStatus)$('multiError').textContent=connectionLabel(snapshot.connectionStatus);refreshResumeButton();return;}$('multiError').textContent='';$('mpErrorStatus').textContent='';if(snapshot.room.phase==='lobby'){showScreen('lobby');renderLobby();}else if(snapshot.room.phase==='game'){showScreen('multi-game');renderMultiplayerGame();if(freshDeal)playDealAnimation(snapshot.view?.players?.length,snapshot.seat,()=>{multiplayerDealing=false;if(appMode==='multi-game')renderMultiplayerGame();});}}
 function onMPError(message){$('multiError').textContent=message;$('mpErrorStatus').textContent=message;if(appMode==='lobby')$('lobbyHint').textContent=message;if(appMode==='multi-game'){$('hint').textContent=message;if(mpSnapshot?.isHost&&mpSnapshot?.view?.roundOver&&mpSnapshot?.connectionStatus==='connected')$('playAgain').disabled=false;}}
 function ensureMP(){const kind=$('transportMode').value;if(mp&&mpKind!==kind){mp.leave(false);mp=null;}
 if(!mp){if(kind==='online'){const url=BondiOnline.serverWebSocketURL($('onlineServer').value);try{localStorage.setItem('bondi:online:url',$('onlineServer').value.trim());}catch(_){}mp=new BondiOnline.OnlineMultiplayerClient({onUpdate:onMPUpdate,onError:onMPError,serverUrl:url});}else{mp=new BondiMultiplayer.MultiplayerClient({engine:BondiEngine,onUpdate:onMPUpdate,onError:onMPError,aiDifficulty:'hard'});}mpKind=kind;}return mp;}
