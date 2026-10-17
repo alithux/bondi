@@ -2,6 +2,8 @@
 
 ## Current release
 
+New Bondi resolutions briefly nudge the table (420 ms) and highlight its edge. Reduce Motion uses only the static highlight. Normal Aiy, repeated snapshots and restored matches do not trigger the effect; game timing and rules are unchanged.
+
 **Aiybai requests are manual:** use Game menu → Request Aiybai when you choose to ask the next active player. Simply becoming eligible after an Aiy no longer opens a panel over your cards. Opening the option asks for confirmation; Cancel returns to normal play without sending a request. Incoming requests still show Agree/Decline. Existing server eligibility and consent rules remain unchanged.
 
 

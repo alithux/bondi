@@ -328,6 +328,11 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 @keyframes bondi-card-flight{0%{opacity:.72;transform:translate(-50%,-50%) scale(.68) rotate(var(--flight-angle,-8deg))}17%,93%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--flight-dx)),calc(-50% + var(--flight-dy))) scale(.96) rotate(0deg)}}
 @media(prefers-reduced-motion:reduce){#gameArea .card-flight{animation:none!important;display:none!important}#gameArea .table-aiy .played.arriving .face{opacity:1}}
 
+/* A short visual response to a newly resolved Bondi. */
+#gameArea .table-arena.bondi-impact{outline:2px solid #f2d27a;outline-offset:-3px}
+#gameArea .table-arena.bondi-nudge{animation:bondi-table-nudge 420ms ease-out}
+@keyframes bondi-table-nudge{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@media(prefers-reduced-motion:reduce){#gameArea .table-arena.bondi-nudge{animation:none}}
 </style></head>
 <body><header><h1>BONDI</h1><p id="buildInfo">Stage 5.15C.1 · Animated card plays · Hard AI 4.5</p></header>
 <main>
@@ -455,6 +460,7 @@ let appMode='home',soloState=null,selected=null,aiTimer=null,resolutionTimer=nul
 let soloSettingsOpen=true,soloGameConfig=null;
 let dealAnimationTimer=null,dealAnimationVersion=0,soloDealing=false,multiplayerDealing=false;
 let soloVisualGame=0,visualAiySnapshot=null,cardFlightJobs=[];
+let bondiVisualSnapshot=null,bondiNudgeTimer=null;
 // Device-only visual preference. Never sent to the game server.
 const HAND_LAYOUT_KEY='bondi:hand-layout';
 let handLayout='straight',lastLeadFocusKey=null,arcDrag=null,ignoreArcClickUntil=0;
@@ -525,7 +531,30 @@ function playDealAnimation(playerCount,viewerSeat=0,onComplete=null){
  },2750);
 }
 // Per-view public Aiy history. Never animate a restored/reconnected snapshot.
+function stopBondiNudge(){
+ clearTimeout(bondiNudgeTimer);bondiNudgeTimer=null;bondiVisualSnapshot=null;
+ $('tableArena').classList.toggle('bondi-nudge',false);
+ $('tableArena').classList.toggle('bondi-impact',false);
+}
+function observeBondi(state,key,connected=true){
+ if(!connected){stopBondiNudge();return;}
+ const old=bondiVisualSnapshot;
+ bondiVisualSnapshot={key,cards:state.trick.length};
+ // A live played Aiy clears on resolution. Repeated snapshots and restored
+ // matches only establish a baseline; identical later Bondis still animate.
+ if(!old||old.key!==key||!old.cards||state.trick.length||state.lastResolution?.type!=='bondi')return;
+ const arena=$('tableArena');
+ clearTimeout(bondiNudgeTimer);
+ arena.classList.toggle('bondi-nudge',false);
+ void arena.offsetWidth;
+ arena.classList.toggle('bondi-impact',true);
+ arena.classList.toggle('bondi-nudge',!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+ bondiNudgeTimer=setTimeout(()=>{
+  arena.classList.toggle('bondi-nudge',false);arena.classList.toggle('bondi-impact',false);bondiNudgeTimer=null;
+ },600);
+}
 function stopCardFlights(){
+ stopBondiNudge();
  for(const j of cardFlightJobs){clearTimeout(j.timer);j.slot?.classList?.toggle('arriving',false);j.node?.remove?.();}
  cardFlightJobs=[];$('cardFlights').innerHTML='';visualAiySnapshot=null;
 }
@@ -633,6 +662,7 @@ function renderGame(state,{viewerSeat=0,aiSeats=new Set(),resolutionPause=false,
   `multi:${mpSnapshot?.room?.code||'none'}:${mpSnapshot?.room?.matchNumber||0}:${viewerSeat}`:
   `solo:${soloVisualGame}`;
  observePlayedCards(shownAiy,gameKey,!!resolutionPause);
+ observeBondi(state,gameKey,!multiplayer||mpKind!=='online'||mpSnapshot?.connectionStatus==='connected');
  $('lead').textContent=resolutionPause&&state.lastResolution?
    `Lead suit: ${state.lastResolution.leadSuit}${state.lastResolution.type==='bondi'?' · BONDI':''}`:
    state.leadSuit?`Lead suit: ${state.leadSuit}${state.trick.some(e=>e.bondi)?' · Bondi occurred':''}`:
