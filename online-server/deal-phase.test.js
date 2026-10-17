@@ -12,7 +12,7 @@ class Peer extends EventEmitter{
  close(){this.closed=true;this.emit('close');}
 }
 function host(s){const p=new Peer();s.attach(p);p.emit('message',JSON.stringify({type:'CREATE',name:'Host'}));return p;}
-function start(s,dealer=3){
+function start(s,dealer=1){
  const p=host(s),code=p.latest('WELCOME').code;
  p.write('ADD_AI');p.write('ADD_AI');p.write('ADD_AI');
  p.write('DEALER',{seat:dealer});p.write('READY',{ready:true});p.write('START');
@@ -21,7 +21,7 @@ function start(s,dealer=3){
 (async()=>{
  const human=new RoomService({dealMs:100,aiDelay:1,resolutionDelay:0});
  try{
-  const {p,entry}=start(human,3);
+  const {p,entry}=start(human,1);
   assert.equal(entry.game.currentPlayer,0,'host is first player');
   const card=entry.game.players[0].hand[0].id;
   const before=entry.game;
