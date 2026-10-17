@@ -1,7 +1,7 @@
 name: BONDI gameplay regression
 on:
   push:
-    branches: [ai/safer-post-bondi-leads]
+    branches: [main, ai/safer-post-bondi-leads]
   pull_request:
 
 jobs:
