@@ -2,6 +2,9 @@
 
 ## Current release
 
+**Aiybai request visibility fix:** The Game menu now always lists Request Aiybai during multiplayer, with an explanation when it is unavailable. After a completed Aiy, when it is your turn to lead and the server opens the request window, a compact **Request [player]’s Aiybai** button appears by your own hand. Tapping it opens the confirmation panel; it does **not** send a request until you explicitly choose Ask. Cancel keeps the game moving. No panel appears automatically at the start of a game or during unrelated turns. Incoming Agree/Decline requests, BONDI rules, and the multiplayer server protocol are unchanged. The updated PWA cache helps iPhone-installed versions receive the fix online.
+
+
 New Bondi resolutions briefly nudge the table (420 ms) and highlight its edge. Reduce Motion uses only the static highlight. Normal Aiy, repeated snapshots and restored matches do not trigger the effect; game timing and rules are unchanged.
 
 **Aiybai requests are manual:** use Game menu → Request Aiybai when you choose to ask the next active player. Simply becoming eligible after an Aiy no longer opens a panel over your cards. Opening the option asks for confirmation; Cancel returns to normal play without sending a request. Incoming requests still show Agree/Decline. Existing server eligibility and consent rules remain unchanged.
