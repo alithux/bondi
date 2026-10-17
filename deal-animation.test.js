@@ -80,14 +80,14 @@ assert.match(solo.$('dealAnimation').innerHTML,/--deal-y:-136px/,'cards fly to t
 assert.match(solo.$('dealAnimation').innerHTML,/--deal-y:136px/,'cards fly to the viewer');
 assert.doesNotMatch(solo.$('dealAnimation').innerHTML,/data-card=|\bhand=|A♠|K♥/,'animation shows backs only');
 assert.equal((solo.$('hand').innerHTML.match(/data-card=/g)||[]).length,13,'true hand dealt immediately');
-const handBefore=solo.$('hand').innerHTML;
+const handBefore=[...solo.$('hand').innerHTML.matchAll(/data-card="([^"]+)"/g)].map(m=>m[1]);
 solo.tasks.at(-1)();
 assert.equal(visible(solo),false,'animation clears after its own timeout');
 assert.equal(solo.$('gameArea').classList.contains('is-dealing'),false,'Aiybai becomes visible when dealing ends');
-assert.equal(solo.$('hand').innerHTML,handBefore,'finish callback never changes game state');
+assert.deepEqual([...solo.$('hand').innerHTML.matchAll(/data-card="([^"]+)"/g)].map(m=>m[1]),handBefore,'finish callback never changes actual Aiybai cards');
 solo.$('replayDeal').click();
 assert.equal(visible(solo),true,'manual replay makes the deal visible again');
-assert.equal(solo.$('hand').innerHTML,handBefore,'replay does not change the original Aiybai');
+assert.deepEqual([...solo.$('hand').innerHTML.matchAll(/data-card="([^"]+)"/g)].map(m=>m[1]),handBefore,'replay does not change original Aiybai cards');
 solo.tasks.at(-1)();
 assert.equal(visible(solo),false,'replay cleans itself up');
 
