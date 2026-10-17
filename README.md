@@ -1,4 +1,18 @@
-# BONDI Stage 5.6 — Hard AI 4.4: Adaptive Suit Memory
+# BONDI Stage 5.15C.1 — Animated card plays · Hard AI 4.5
+
+## Current release
+
+BONDI supports solo play and online multiplayer, a modern mobile table, Straight/Arc Aiybai selection, shuffle/deal animations, and public card flights into the Aiy. The opening dealing phase hides cards and blocks both human and AI plays until dealing completes. Solo strategy logs use the same build label as the visible page header.
+
+- Installable PWA with offline solo play after the public app shell has been cached. Solo progress is not retained after closing/reloading.
+- Online rooms include AI difficulty, consent-based Aiybai requests, match results, room statistics, and a two-minute reconnect reservation.
+- PostgreSQL room recovery is implemented but requires deployment configuration. Check `/health` for `persistence: postgres_ready` before relying on restart recovery.
+- The recorded test-database expiry is **13 November 2026**; verify the current plan and arrange continued storage before then.
+- Gameplay regression checks run on pull requests and pushes to `main` (as well as the existing AI branch).
+
+The sections below are release history. Older version numbers, deployment limitations and validation figures describe those releases, not the current deployment. Real-device behavior and Render deployment/database state require separate live verification.
+
+## Stage 5.6 — Hard AI 4.4: Adaptive Suit Memory (historical)
 
 **Play:** https://alithux.github.io/bondi/
 **Online server:** https://bondi-online.onrender.com/health

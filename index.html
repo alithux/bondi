@@ -329,7 +329,7 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 @media(prefers-reduced-motion:reduce){#gameArea .card-flight{animation:none!important;display:none!important}#gameArea .table-aiy .played.arriving .face{opacity:1}}
 
 </style></head>
-<body><header><h1>BONDI</h1><p>Stage 5.15C.1 · Animated card plays · Hard AI 4.5</p></header>
+<body><header><h1>BONDI</h1><p id="buildInfo">Stage 5.15C.1 · Animated card plays · Hard AI 4.5</p></header>
 <main>
 <section class="panel" id="homePanel"><strong>Choose how to play</strong><p class="note">Play solo or with friends. The confirmed BONDI rules remain unchanged.</p>
 <p id="offlineNotice" class="offline-notice hidden" role="status">You are offline. Solo vs AI works without internet after BONDI has loaded online once. Multiplayer needs an internet connection.</p>
@@ -726,7 +726,7 @@ function startSolo(){
  soloState.players[0].name='You';
  soloState.players.slice(1).forEach((p,i)=>p.name=`AI ${i+1}`);
  fullGameLog=[];addFullLog('BONDI FULL GAME STRATEGY LOG');
- addFullLog('Build: Stage 5.6 · Solo engine Stage 4.4');
+ addFullLog('Build: '+$('buildInfo').textContent);
  addFullLog(`Players: ${n} · Dealer: ${soloState.players[d].name} · AI difficulty: ${soloGameConfig.difficulty.toUpperCase()}`);
  addFullLog(`First player: ${soloState.players[soloState.currentPlayer].name}`);
  snapshotHands('Initial Aiybai:');addFullLog('');
