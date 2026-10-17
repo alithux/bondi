@@ -278,6 +278,10 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 #gameArea .match-results:not(.hidden){position:fixed;inset:calc(12px + var(--safe-top)) 10px calc(93px + var(--safe-bottom));z-index:65;overflow:auto;border:1px solid #71977c;box-shadow:0 18px 40px #061a1c}
 #gameArea .rematch-panel:not(.hidden){position:fixed;bottom:calc(15px + var(--safe-bottom));left:10px;right:10px;z-index:66;box-shadow:0 -8px 25px #071d1e}
 #gameArea .aiybai-offer:not(.hidden){position:fixed;bottom:calc(15px + var(--safe-bottom));left:10px;right:10px;z-index:67;box-shadow:0 -12px 36px rgba(0,0,0,.55)}
+/* Discoverable, opt-in Aiybai request: compact in the hand dock only when eligible. */
+#gameArea .hand-aiybai-shortcut{display:block;max-width:100%;min-height:44px;margin:5px 0 0;padding:7px 12px;border:1px solid #d6b675;border-radius:11px;background:#234a40;color:#ffe1a4;font-size:.81rem;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#gameArea .game-menu-content #openAiybaiRequest{display:block;width:100%;text-align:left}
+#gameArea .game-menu-content #aiybaiMenuHint{margin:4px 0 12px;line-height:1.35}
 @media(max-height:740px){#gameArea .game-hud{padding-top:calc(5px + var(--safe-top));padding-bottom:5px}#gameArea .game-hud-status{margin-top:5px}#gameArea .game-hand-dock{padding-top:7px;padding-bottom:calc(7px + var(--safe-bottom))}#gameArea .cards.arc{min-height:113px;padding-top:10px;padding-bottom:5px}#gameArea .cards.arc .card{height:80px;min-height:80px}#gameArea .hand-preview{margin-bottom:4px}#gameArea .play-actions button{min-height:48px}#gameArea .table-aiy{top:28%;height:50%}}
 @media(max-width:360px){.game-hud{padding-inline:9px}.game-identity strong{font-size:1.12rem}.game-identity>span{font-size:.66rem}.hud-turn,.hud-lead{font-size:.72rem;padding:4px 7px}#gameArea .game-hand-dock{padding-inline:9px}#gameArea .table-aiy{width:49%;padding:7px 3px}#gameArea .table-seats .seat{padding:4px}#gameArea .table-seats .seat[data-position="left"],#gameArea .table-seats .seat[data-position="right"]{width:24%}#gameArea .table-seats .seat b{font-size:.67rem}#gameArea .seat-avatar{width:25px;height:25px;flex-basis:25px}#gameArea .cards.arc{padding-inline:27px}#gameArea .cards.arc .card{width:59px}}
 @media(min-width:700px){body.in-game main{max-width:860px}#gameArea .game-hud{padding:calc(9px + var(--safe-top)) 22px 11px}#gameArea .table-panel{padding:10px 20px}#gameArea .table-seats .seat[data-position="left"],#gameArea .table-seats .seat[data-position="right"]{width:20%}#gameArea .table-aiy{width:40%;height:51%}#gameArea .table-aiy .played .face{width:67px;height:88px}#gameArea .table-aiy .face-pip{font-size:2.1rem}#gameArea .game-hand-dock{padding:15px 20px calc(15px + var(--safe-bottom))}#gameArea .cards.arc{min-height:148px}#gameArea .cards.arc .card{height:104px;min-height:104px;width:73px}}
@@ -395,7 +399,8 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
    <details id="gameMenu" class="game-menu"><summary aria-label="Game menu">☰ <span class="sr-only">Game menu</span></summary>
     <div class="game-menu-content">
       <strong class="menu-title">Game options</strong>
-      <button id="openAiybaiRequest" class="secondary hidden" type="button">Request Aiybai…</button>
+      <button id="openAiybaiRequest" class="secondary hidden" type="button" disabled>Request Aiybai…</button>
+      <p id="aiybaiMenuHint" class="note hidden">After a completed Aiy, the next leader can ask for Aiybai before playing.</p>
       <button id="replayDeal" class="secondary deal-replay" type="button">↻ Replay deal animation</button>
       <div id="soloPlayingBar" class="solo-playing-bar hidden" aria-label="Solo game controls">
  <span id="soloPlayingSummary">Solo vs AI</span>
@@ -448,7 +453,7 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
    <div id="cardFlights" class="card-flights" aria-hidden="true"></div>
  </div>
 </section>
-<section class="panel game-hand-dock"><div class="row hand-heading"><div class="hand-heading-title"><strong id="handTitle">Your Aiybai</strong><span class="note" id="handNote"></span></div><label class="hand-layout-control" for="handLayout">Hand shape <select id="handLayout" aria-label="Aiybai card layout"><option value="straight">Straight</option><option value="arc">Arc</option></select></label></div><div class="hand-turn" id="handTurnStatus" role="status" aria-live="polite">Waiting for your turn…</div><div id="hand" class="cards"></div><div class="selected-summary"><span id="selectedCardMini" class="selected-mini-card hidden" aria-hidden="true">—</span><div id="handPreview" class="hand-preview" role="status" aria-live="off"></div></div><div class="play-actions"><button class="primary" id="play" disabled>Play selected card</button><button id="clear">Clear</button></div><p class="note" id="hint">Tap once to select; double-tap the same card to play. Swipe sideways to browse your Aiybai.</p></section>
+<section class="panel game-hand-dock"><div class="row hand-heading"><div class="hand-heading-title"><strong id="handTitle">Your Aiybai</strong><span class="note" id="handNote"></span></div><label class="hand-layout-control" for="handLayout">Hand shape <select id="handLayout" aria-label="Aiybai card layout"><option value="straight">Straight</option><option value="arc">Arc</option></select></label></div><div class="hand-turn" id="handTurnStatus" role="status" aria-live="polite">Waiting for your turn…</div><button id="aiybaiShortcut" class="secondary hand-aiybai-shortcut hidden" type="button">Request Aiybai…</button><div id="hand" class="cards"></div><div class="selected-summary"><span id="selectedCardMini" class="selected-mini-card hidden" aria-hidden="true">—</span><div id="handPreview" class="hand-preview" role="status" aria-live="off"></div></div><div class="play-actions"><button class="primary" id="play" disabled>Play selected card</button><button id="clear">Clear</button></div><p class="note" id="hint">Tap once to select; double-tap the same card to play. Swipe sideways to browse your Aiybai.</p></section>
 </div>
 </main>
 <script src="source-part-01.js?v=5.15c1"></script><script src="source-part-02.js?v=5.15c1"></script><script src="source-part-03.js?v=5.15c1"></script><script src="source-part-04.js?v=5.15c1"></script><script src="source-part-05.js?v=5.15c1"></script><script src="source-part-06.js?v=5.15c1"></script><script src="source-part-07.js?v=5.15c1"></script><script src="source-part-08.js?v=5.15c1"></script><script src="source-part-09.js?v=5.15c1"></script><script src="source-part-10.js?v=5.15c1"></script><script src="game-engine.js?v=5.15c1"></script><script src="multiplayer-core.js?v=5.15c1"></script><script src="multiplayer-browser.js?v=5.15c1"></script><script src="online-config.js?v=5.15c1"></script><script src="online-client.js?v=5.15c1"></script>
@@ -599,7 +604,7 @@ function showScreen(mode){
  document.body?.classList?.toggle?.('in-game',actualGame);
  if(!actualGame){stopDealAnimation();stopCardFlights();soloDealing=false;multiplayerDealing=false;}
  if(mode==='solo'&&!soloState)soloSettingsOpen=true;
- if(mode!=='multi-game'){aiybaiOfferOpen=false;setHidden('openAiybaiRequest',true);setHidden('rematchPanel',true);setHidden('matchResultsPanel',true);setHidden('aiybaiOfferPanel',true);}
+ if(mode!=='multi-game'){aiybaiOfferOpen=false;setHidden('openAiybaiRequest',true);setHidden('aiybaiMenuHint',true);setHidden('aiybaiShortcut',true);setHidden('rematchPanel',true);setHidden('matchResultsPanel',true);setHidden('aiybaiOfferPanel',true);}
  setHidden('homePanel',mode!=='home');
  setHidden('soloSetup',mode!=='solo'||!soloSettingsOpen);
  setHidden('soloPlayingBar',mode!=='solo'||!soloState||soloSettingsOpen);
@@ -865,7 +870,18 @@ function renderAiybaiOffer(snap){
  const waiting=!!request&&!view.roundOver;
  if(!canRequest)aiybaiOfferOpen=false;
  const showOffer=canRequest&&aiybaiOfferOpen;
- setHidden('openAiybaiRequest',!canRequest);
+ // Keep the menu entry discoverable throughout multiplayer, but do not
+ // open a request automatically. The hand-dock shortcut appears only when
+ // the server-authoritative between-Aiy request window is open.
+ setHidden('openAiybaiRequest',false);
+ setHidden('aiybaiMenuHint',false);
+ $('openAiybaiRequest').disabled=!canRequest;
+ setHidden('aiybaiShortcut',!canRequest);
+ $('aiybaiMenuHint').textContent=canRequest?'Available now. Tap to review the request before sending.':
+   waiting?'An Aiybai request is waiting for an answer.':
+   view?.roundOver?'This match has finished.':
+   mpKind==='online'&&snap.connectionStatus!=='connected'?'Reconnect before requesting Aiybai.':
+   'Available after a completed Aiy, before you lead the next Aiy.';
  setHidden('aiybaiOfferPanel',!showOffer&&!waiting);
  setHidden('requestAiybai',!showOffer);
  setHidden('cancelAiybaiRequest',!showOffer);
@@ -875,7 +891,12 @@ function renderAiybaiOffer(snap){
    const target=room.seats[next];
    $('aiybaiOfferNote').textContent=`Before you lead this Aiy, you may ask ${target.name} (Seat ${next+1}) for their entire Aiybai. They must agree; otherwise lead a card as usual.`;
    $('requestAiybai').textContent=`Ask ${target.name} for Aiybai`;
- }else if(waiting){
+   $('openAiybaiRequest').textContent='Request '+target.name+'’s Aiybai…';
+   $('aiybaiShortcut').textContent='Request '+target.name+'’s Aiybai…';
+ }else{
+   $('openAiybaiRequest').textContent='Request Aiybai…';
+ }
+ if(waiting){
    const requester=room.seats[request.fromSeat],giver=room.seats[request.toSeat];
    $('aiybaiOfferNote').textContent=request.toSeat===me?
      `${requester.name} asks for your entire Aiybai. If you agree, you finish and all your cards go to them. You may decline.`:
@@ -887,7 +908,7 @@ function renderMultiplayerGame(){
  if(!snap||!snap.room)return;
  $('gameRoomCode').textContent=snap.room.code;
  $('gameRole').textContent=snap.isHost?'Host':'Player';
- if(!snap.view){$('status').textContent='Starting multiplayer game…';setHidden('matchResultsPanel',true);setHidden('aiybaiOfferPanel',true);return;}
+ if(!snap.view){$('status').textContent='Starting multiplayer game…';setHidden('matchResultsPanel',true);setHidden('aiybaiOfferPanel',true);setHidden('openAiybaiRequest',true);setHidden('aiybaiMenuHint',true);setHidden('aiybaiShortcut',true);return;}
  const aiSeats=new Set(snap.room.seats.filter(s=>s.isAI).map(s=>s.seat));
  $('logNote').textContent='Multiplayer logs are public-event logs. Opponents’ hidden Aiybai are never rendered in your game view.';
  renderGame(snap.view,{viewerSeat:snap.seat,aiSeats,resolutionPause:!!snap.view.resolutionPause,multiplayer:true});
@@ -998,7 +1019,12 @@ $('soloOptions').addEventListener('click',()=>{
  clearTimeout(aiTimer);
  restoreSoloSettings();soloSettingsOpen=true;showScreen('solo');
 });
-$('openAiybaiRequest').addEventListener('click',()=>{if(appMode!=='multi-game'||!mpSnapshot)return;aiybaiOfferOpen=true;$('gameMenu').open=false;renderAiybaiOffer(mpSnapshot);});
+function openAiybaiConfirmation(){
+ if(appMode!=='multi-game'||!mpSnapshot||$('openAiybaiRequest').disabled)return;
+ aiybaiOfferOpen=true;$('gameMenu').open=false;renderAiybaiOffer(mpSnapshot);
+}
+$('openAiybaiRequest').addEventListener('click',openAiybaiConfirmation);
+$('aiybaiShortcut').addEventListener('click',openAiybaiConfirmation);
 $('cancelAiybaiRequest').addEventListener('click',()=>{aiybaiOfferOpen=false;if(mpSnapshot)renderAiybaiOffer(mpSnapshot);});
 $('soloHome').addEventListener('click',()=>showScreen('home'));$('multiBack').addEventListener('click',()=>showScreen('home'));$('newGame').addEventListener('click',startSolo);$('clear').addEventListener('click',()=>{selected=null;if(appMode==='solo')renderSolo();else renderMultiplayerGame();});$('play').addEventListener('click',()=>{if(selected)playSelected(selected)});$('createRoom').addEventListener('click',()=>{try{ensureMP().createRoom($('playerName').value);}catch(e){onMPError(e.message);}});$('joinCode').addEventListener('input',e=>e.target.value=BondiMultiplayer.normalizeCode(e.target.value));$('transportMode').addEventListener('change',showTransportMode);$('onlineServer').addEventListener('input',refreshResumeButton);for(const id of ['retryLobby','retryGame'])$(id).addEventListener('click',()=>{try{if(mpKind==='online')mp.retryConnection();}catch(e){onMPError(e.message);}});$('resumeRoom').addEventListener('click',()=>{try{ensureMP().resumeRoom();}catch(e){onMPError(e.message);}});$('joinRoom').addEventListener('click',()=>{try{ensureMP().joinRoom($('playerName').value,$('joinCode').value);}catch(e){onMPError(e.message);}});$('leaveRoom').addEventListener('click',leaveMultiplayer);$('leaveGame').addEventListener('click',leaveMultiplayer);$('readyButton').addEventListener('click',()=>{const room=mpSnapshot.room,me=room.seats.find(s=>s.clientId===mpSnapshot.clientId);if(me)mp.setReady(!me.ready);});$('mpDealer').addEventListener('change',e=>mp.setDealer(Number(e.target.value)));$('mpAIDifficulty').addEventListener('change',e=>{if(mpSnapshot?.isHost)mp.setAIDifficulty(e.target.value);});$('fillAI').addEventListener('click',()=>{if(!mpSnapshot?.isHost)return;const empty=mpSnapshot.room.seats.filter(s=>!s.clientId&&!s.isAI).length;for(let i=0;i<empty;i++)mp.addAI();});$('startRoom').addEventListener('click',()=>mp.startGame());$('playAgain').addEventListener('click',()=>{if(mpKind!=='online'||!mpSnapshot?.isHost||!mpSnapshot.view?.roundOver)return;$('playAgain').disabled=true;mp.requestRematch();});$('inviteLink').addEventListener('click',()=>{ $('inviteLink').select(); });$('requestAiybai').addEventListener('click',()=>{if(aiybaiOfferOpen&&mp&&mpSnapshot?.view?.aiybaiWindowOpen&&mpSnapshot.view.currentPlayer===mpSnapshot.seat)mp.requestAiybai();});$('acceptAiybai').addEventListener('click',()=>{if(mp)mp.answerAiybai(true);});$('declineAiybai').addEventListener('click',()=>{if(mp)mp.answerAiybai(false);});$('copyRoomCode').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(code)await copyLobbyText(code,`Room code ${code} copied. Share it with your friends.`);});$('shareRoom').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(!code||mpKind!=='online')return;const url=roomInviteURL(code);if(navigator.share){try{await navigator.share({title:'Join my BONDI room',text:`Join my BONDI room ${code}`,url});$('shareStatus').textContent='Invite shared.';return;}catch(e){if(e.name==='AbortError')return;}}await copyLobbyText(url,'Invite link copied. Send it to your friends.');});$('copyFullLog').addEventListener('click',async()=>{let text;if(appMode==='solo')text=fullGameLog.join('\n');else{const view=currentMPView(),room=mpSnapshot?.room;text=['BONDI MULTIPLAYER GAME LOG','Build: '+$('buildInfo').textContent,'Engine: Stage 4.5',`AI difficulty: ${(room?.aiDifficulty||'hard').toUpperCase()}`,`Room: ${room?.code||''}`,`Match: ${Number(room?.matchNumber||1)}`,`Your seat: ${(currentMPSeat()??0)+1}`,'Seats:',...(room?.seats||[]).map((seat,i)=>`Seat ${i+1}: ${seat.name}${seat.aiTakeover?' (AI takeover after leaving)':seat.isAI?' (AI)':''}`),'',...multiplayerNamedLogs(view?.log||[],room),...(view?.roundOver?['','MATCH RESULTS',...BondiMultiplayerCore.matchResults(room,view).players.map(p=>`${p.rank}. ${p.name} (Seat ${p.seat+1}) · Gave ${p.bondiGiven} Bondi · Received ${p.bondiReceived} Bondi${p.lastHolding?' · Last holding cards':''}`),`Bondi events: ${BondiMultiplayerCore.matchResults(room,view).bondiEvents}`,'','CURRENT ROOM TOTALS',`${room?.roomStats?.matchesPlayed||0} matches`,...(room?.seats||[]).map((seat,i)=>`${seat.name} (Seat ${i+1}) · First ${room?.roomStats?.firstPlaces?.[i]||0} · Last ${room?.roomStats?.lastPlaces?.[i]||0} · Bondi given ${room?.roomStats?.bondiGiven?.[i]||0} · Received ${room?.roomStats?.bondiReceived?.[i]||0}`)]:[])].join('\n');}try{await navigator.clipboard.writeText(text);$('copyStatus').textContent='Game log copied.';}catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();$('copyStatus').textContent='Game log copied.';}setTimeout(()=>$('copyStatus').textContent='',2500);});window.addEventListener('beforeunload',()=>{try{if(mp&&mp.room&&mpKind!=='online')mp.leave(true);}catch(e){}});const inviteCode=(window.location?.search||'').match(/[?&]room=([A-Z0-9]{6})(?:&|$)/i)?.[1];
 if(inviteCode){$('joinCode').value=inviteCode.toUpperCase();chooseRoomEntry('join');showScreen('multi-setup');}else showScreen('home');
