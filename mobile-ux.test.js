@@ -11,7 +11,7 @@ for(const id of ['handTurnStatus','inviteLink','inviteLinkField','hand','play','
 assert.match(html,/\.card\{flex-basis:68px;width:68px;min-width:68px;height:94px/,'cards are larger on phones');
 assert.match(html,/:focus-visible\{outline:3px solid var\(--gold\)/,'keyboard focus remains visible');
 assert.match(html,/\.room-total-row span\{font-size:\.87rem/,'results have readable labels');
-assert.match(html,/Stage 5\.15A\.2 · iPhone dealing animation fix/);
+assert.match(html,/Stage 5\.15A\.3 · Cards hidden until dealt/);
 
 class ClassList{
  constructor(){this.values=new Set(['hidden']);}
@@ -29,6 +29,7 @@ class Element{
 }
 const elements=new Map(),$=id=>{if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);};
 let client,clipboardDisabled=false,copyCount=0;
+const timers=[];
 class FakeClient{
  constructor(options){this.options=options;client=this;}
  createRoom(){}
@@ -38,7 +39,7 @@ class FakeClient{
 const navigator={clipboard:{writeText:async()=>{copyCount++;if(clipboardDisabled)throw Error('Browser clipboard denied');}}};
 const storage={getItem:()=>null,setItem(){},removeItem(){}};
 const window={BONDI_ONLINE_SERVER_URL:'https://bondi-online.onrender.com',location:{protocol:'https:',origin:'https://alithux.github.io',pathname:'/bondi/',search:''},addEventListener(){}};
-const ctx=vm.createContext({window,document:{getElementById:$,title:'BONDI'},localStorage:storage,sessionStorage:storage,console,Date,setInterval:()=>0,setTimeout:()=>0,clearTimeout:()=>{},navigator,
+const ctx=vm.createContext({window,document:{getElementById:$,title:'BONDI'},localStorage:storage,sessionStorage:storage,console,Date,setInterval:()=>0,setTimeout:fn=>{timers.push(fn);return timers.length;},clearTimeout:()=>{},navigator,
  BondiMultiplayer:{MultiplayerClient:FakeClient,normalizeCode:x=>x.toUpperCase()},
  BondiOnline:{OnlineMultiplayerClient:FakeClient,serverWebSocketURL:()=> 'wss://bondi-online.onrender.com/ws'},
  BondiMultiplayerCore:Core,BondiEngineReady:{then:fn=>fn()},BondiEngine:Engine});
@@ -65,6 +66,8 @@ assert.equal($('inviteLinkField').classList.contains('hidden'),false);
  view.currentPlayer=0;view.roundOver=false;view.resolutionPause=false;
  const update=(status='connected')=>client.options.onUpdate({room,view,clientId:'host',seat:0,isHost:true,connectionStatus:status});
  update();
+ assert.equal($('gameArea').classList.contains('is-dealing'),true);
+ timers.at(-1)();
  assert.match($('handTurnStatus').textContent,/YOUR TURN/);
  assert.equal($('handTurnStatus').classList.contains('ready'),true);
  assert.match($('hand').innerHTML,/aria-label="[^"]+ of (spades|hearts|diamonds|clubs)"/);

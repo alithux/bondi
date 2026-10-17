@@ -14,7 +14,7 @@ assert.doesNotMatch(html,/@media\(prefers-reduced-motion:reduce\)\{#gameArea \.d
 assert.match(html,/id="replayDeal"/,'manual replay is available');
 assert.match(html,/@keyframes bondi-shuffle/);
 assert.match(html,/@keyframes bondi-deal-flight/);
-assert.match(html,/Stage 5\.15A\.2 · iPhone dealing animation fix/);
+assert.match(html,/Stage 5\.15A\.3 · Cards hidden until dealt/);
 
 function boot(reduceMotion=false){
  class ClassList{
@@ -71,6 +71,8 @@ solo.$('soloMode').click();
 solo.$('players').value='4';solo.$('dealer').value='1';solo.$('aiDifficulty').value='hard';
 solo.$('newGame').click();
 assert.equal(visible(solo),true,'new solo deal starts animation');
+assert.equal(solo.$('gameArea').classList.contains('is-dealing'),true,'all real card faces are covered');
+assert.equal(solo.$('play').disabled,true,'cannot play a card until deal ends');
 assert.equal((solo.$('dealAnimation').innerHTML.match(/class="shuffle-card"/g)||[]).length,6);
 assert.equal((solo.$('dealAnimation').innerHTML.match(/class="flying-card"/g)||[]).length,16);
 assert.match(solo.$('dealAnimation').innerHTML,/--deal-x:-119px/,'cards fly to the left player');
@@ -78,13 +80,14 @@ assert.match(solo.$('dealAnimation').innerHTML,/--deal-y:-136px/,'cards fly to t
 assert.match(solo.$('dealAnimation').innerHTML,/--deal-y:136px/,'cards fly to the viewer');
 assert.doesNotMatch(solo.$('dealAnimation').innerHTML,/data-card=|\bhand=|A♠|K♥/,'animation shows backs only');
 assert.equal((solo.$('hand').innerHTML.match(/data-card=/g)||[]).length,13,'true hand dealt immediately');
-const handBefore=solo.$('hand').innerHTML;
+const handBefore=[...solo.$('hand').innerHTML.matchAll(/data-card="([^"]+)"/g)].map(m=>m[1]);
 solo.tasks.at(-1)();
 assert.equal(visible(solo),false,'animation clears after its own timeout');
-assert.equal(solo.$('hand').innerHTML,handBefore,'finish callback never changes game state');
+assert.equal(solo.$('gameArea').classList.contains('is-dealing'),false,'Aiybai becomes visible when dealing ends');
+assert.deepEqual([...solo.$('hand').innerHTML.matchAll(/data-card="([^"]+)"/g)].map(m=>m[1]),handBefore,'finish callback never changes actual Aiybai cards');
 solo.$('replayDeal').click();
 assert.equal(visible(solo),true,'manual replay makes the deal visible again');
-assert.equal(solo.$('hand').innerHTML,handBefore,'replay does not change the original Aiybai');
+assert.deepEqual([...solo.$('hand').innerHTML.matchAll(/data-card="([^"]+)"/g)].map(m=>m[1]),handBefore,'replay does not change original Aiybai cards');
 solo.tasks.at(-1)();
 assert.equal(visible(solo),false,'replay cleans itself up');
 
@@ -122,6 +125,7 @@ const update=(connectionStatus='connected')=>client.options.onUpdate({
 });
 update();
 assert.equal(visible(online),true,'transition from multiplayer lobby to game deals cards');
+assert.equal(online.$('gameArea').classList.contains('is-dealing'),true,'multiplayer hand is concealed through animation');
 assert.equal((online.$('dealAnimation').innerHTML.match(/class="flying-card"/g)||[]).length,16);
 const taskCount=online.tasks.length;
 update();
@@ -130,6 +134,7 @@ update('connected');
 assert.equal(online.tasks.length,taskCount,'live updates and reconnects never replay the deal');
 online.tasks.at(-1)();
 assert.equal(visible(online),false);
+assert.equal(online.$('gameArea').classList.contains('is-dealing'),false,'online cards reveal after local animation');
 update();
 assert.equal(visible(online),false,'existing online game does not repeat animation');
 // A restored active game, with no prior lobby transition, must also skip motion.

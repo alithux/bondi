@@ -32,3 +32,4 @@ jobs:
       - run: node online-reconnect.test.js
       - run: node online-server/persistence.test.js
       - run: node online-server/room-service.test.js
+      - run: node online-server/deal-phase.test.js

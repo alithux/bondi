@@ -25,7 +25,7 @@ assert.match(html,/#gameArea \.table-seats \.seat\[data-position="top"\]/);
 assert.match(html,/#gameArea \.table-seats \.seat\[data-position="bottom"\]/);
 assert.match(html,/@media\(max-width:360px\)/,'small Android and iPhone screens are supported');
 assert.match(html,/@media\(max-height:740px\)/,'short screens compact the interface');
-assert.match(html,/Stage 5\.15A\.2 · iPhone dealing animation fix/);
+assert.match(html,/Stage 5\.15A\.3 · Cards hidden until dealt/);
 
 class ClassList{
  constructor(){this.items=new Set(['hidden']);}
@@ -60,9 +60,10 @@ class FakeClient{
 const win={BONDI_ONLINE_SERVER_URL:'https://bondi-online.onrender.com',
  location:{origin:'https://alithux.github.io',pathname:'/bondi/',search:'',protocol:'https:'},
  addEventListener(){}};
+const timers=[];
 const ctx=vm.createContext({
  window:win,document,localStorage:storage,sessionStorage:storage,
- navigator:{},console,Date,setInterval:()=>0,setTimeout:()=>0,clearTimeout:()=>{},
+ navigator:{},console,Date,setInterval:()=>0,setTimeout:fn=>{timers.push(fn);return timers.length;},clearTimeout:()=>{},
  BondiEngineReady:{then:fn=>fn()},BondiEngine:Engine,
  BondiMultiplayer:{normalizeCode:v=>v.toUpperCase(),MultiplayerClient:FakeClient},
  BondiOnline:{serverWebSocketURL:()=> 'wss://bondi-online.onrender.com/ws',OnlineMultiplayerClient:FakeClient},
@@ -75,6 +76,8 @@ assert.equal(document.body.classList.contains('in-game'),false,'first-time setti
 $('players').value='4';$('dealer').value='1';$('aiDifficulty').value='hard';
 $('newGame').click();
 assert.equal(document.body.classList.contains('in-game'),true,'after dealing a mobile gameplay screen is active');
+assert.equal($('gameArea').classList.contains('is-dealing'),true,'the initial hand is covered');
+timers.at(-1)(); // Complete the opening deal before testing live controls.
 assert.equal($('hudRoom').textContent,'Solo · 4 players');
 assert.equal($('hudConnection').textContent,'● Solo');
 assert.match($('hudTurn').textContent,/Your turn/);
@@ -102,6 +105,7 @@ for(let i=0;i<3;i++)room=Core.applyLobbyAction(room,{type:'ADD_AI',clientId:'hos
 room=Core.applyLobbyAction(room,{type:'SET_READY',clientId:'host',ready:true});
 const started=Core.startGame(room,Engine,()=>0.37);
 room=started.room;
+room.dealUntil=Date.now()+2750;
 const view=Core.projectGame(room,started.game,'host');
 view.currentPlayer=0;view.resolutionPause=false;
 const update=(status='connected')=>client.options.onUpdate({room,view,seat:0,isHost:true,clientId:'host',connectionStatus:status});
@@ -109,6 +113,8 @@ update();
 assert.equal(document.body.classList.contains('in-game'),true,'online multiplayer uses same immersive view');
 assert.equal($('hudRoom').textContent,'Room BD1234');
 assert.equal($('hudConnection').textContent,'● Online');
+assert.equal($('gameArea').classList.contains('is-dealing'),true,'other devices also wait for deal completion');
+room.dealUntil=0;update(); // server publishes the end of the deal
 assert.match($('hudTurn').textContent,/Your turn/);
 assert.match($('seats').innerHTML,/data-position="bottom"/);
 assert.equal(($('aiy').innerHTML.match(/class="played awaiting"/g)||[]).length,4);

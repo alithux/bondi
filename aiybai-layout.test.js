@@ -31,6 +31,7 @@ function boot(savedValue,failStorage=false){
  }
  const elements=new Map(),$=id=>{if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);};
  let client, saved=null;
+ const timers=[];
  class FakeClient{
   constructor(opts){this.opts=opts;client=this;}
   createRoom(){}
@@ -47,7 +48,7 @@ function boot(savedValue,failStorage=false){
  const ctx=vm.createContext({
   window:win,document:{getElementById:$,title:'BONDI'},
   localStorage:storage,sessionStorage:storage,console,Date,setInterval:()=>0,
-  setTimeout:()=>0,clearTimeout:()=>{},navigator:{},
+  setTimeout:fn=>{timers.push(fn);return timers.length;},clearTimeout:()=>{},navigator:{},
   BondiEngineReady:{then:fn=>fn()},BondiEngine:Engine,
   BondiMultiplayer:{normalizeCode:x=>x.toUpperCase(),MultiplayerClient:FakeClient},
   BondiOnline:{serverWebSocketURL:()=> 'wss://bondi-online.onrender.com/ws',OnlineMultiplayerClient:FakeClient},
@@ -57,12 +58,13 @@ function boot(savedValue,failStorage=false){
  // The DOM fixture doesn't parse default <select> options as a browser does.
  $('players').value='4';$('dealer').value='1';$('aiDifficulty').value='hard';
  function shape(mode){$('handLayout').value=mode;$('handLayout').events.change({target:$('handLayout')});}
- return {$,shape,getSaved:()=>saved,getClient:()=>client};
+ return {$,shape,getSaved:()=>saved,getClient:()=>client,finishDeal:()=>timers.at(-1)?.()};
 }
-const { $, shape,getSaved,getClient}=boot(undefined);
+const { $, shape,getSaved,getClient,finishDeal}=boot(undefined);
 assert.equal($('handLayout').value,'straight','Straight is the default for returning players');
 $('soloMode').click();
 $('newGame').click();
+finishDeal(); // Reveal and unlock the first hand after dealing.
 const initial=$('hand').innerHTML;
 assert.equal($('hand').classList.contains('arc'),false);
 assert.equal(($('hand').innerHTML.match(/data-card=/g)||[]).length,13);

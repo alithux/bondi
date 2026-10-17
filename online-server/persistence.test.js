@@ -25,7 +25,7 @@ const act=(p,action,extra={})=>p.write({type:'ACTION',action,...extra});
 
 (async()=>{
  const store=new MemoryStore();
- const s1=new RoomService({store,graceMs:2500,aiDelay:10000,resolutionDelay:0});
+ const s1=new RoomService({dealMs:0,store,graceMs:2500,aiDelay:10000,resolutionDelay:0});
  const host=attach(s1);host.write({type:'CREATE',name:'Desktop'});
  const roomCode=host.latest('WELCOME').code,hostToken=host.latest('WELCOME').token;
  const phone=attach(s1);phone.write({type:'JOIN',code:roomCode,name:'Phone'});
@@ -48,7 +48,7 @@ const act=(p,action,extra={})=>p.write({type:'ACTION',action,...extra});
  assert.equal(store.rows.has(roomCode),true,'room must remain stored after clean shutdown');
 
  // Simulate a brand-new process: none of the original in-memory maps survive.
- const s2=new RoomService({store,graceMs:2500,aiDelay:10000,resolutionDelay:0});
+ const s2=new RoomService({dealMs:0,store,graceMs:2500,aiDelay:10000,resolutionDelay:0});
  try{
   assert.equal(await s2.restore(),1);
   assert.equal(s2.rooms.size,1);

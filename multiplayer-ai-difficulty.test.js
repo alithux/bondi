@@ -39,7 +39,7 @@ async function main(){
   try{
     for(const level of ['easy','medium','hard']){
       chosenLevels.length=0;
-      const service=new RoomService({aiDelay:1,resolutionDelay:1});
+      const service=new RoomService({dealMs:0,aiDelay:1,resolutionDelay:1});
       try{
         const host=attach(service);
         host.write({type:'CREATE',name:'Host'});
