@@ -19,3 +19,4 @@ server.on('upgrade',(req,socket,head)=>
 server.listen(port,'127.0.0.1',()=>console.log('Isolated BONDI benchmark listening on 127.0.0.1:'+port));
 function stop(){service.shutdown();server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),2500).unref();}
 process.on('SIGTERM',stop);process.on('SIGINT',stop);
+

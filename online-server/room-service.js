@@ -3,7 +3,8 @@ const crypto = require('node:crypto');
 const Core = require('../multiplayer-core.js');
 const Engine = require('./load-engine.js');
 const CODE_ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const SESSION_GRACE_MS=60000;
+const SESSION_GRACE_MS=120000;
+const DEAL_MS=2750;
 const IDLE_ROOM_MS=20*60*1000;
 
 function cleanCode(value) { return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6); }
@@ -22,8 +23,81 @@ function translateFinishLogs(log,room) {
   return log.map(x=>x.replace(/\bPlayer ([1-4]) has finished\./g,(_,n)=>`${room.seats[Number(n)-1].name} (Seat ${n}) has finished.`));
 }
 class RoomService {
-  constructor({aiDelay=650,resolutionDelay=1800,graceMs=SESSION_GRACE_MS, maxRooms=100,logger=()=>{}}={}) {
-    this.rooms=new Map();this.sessions=new Map();this.aiDelay=aiDelay;this.resolutionDelay=resolutionDelay;this.graceMs=graceMs;this.maxRooms=maxRooms;this.logger=logger;
+  constructor({aiDelay=1000,resolutionDelay=1000,dealMs=DEAL_MS,graceMs=SESSION_GRACE_MS, maxRooms=100,logger=()=>{},store=null}={}) {
+    this.rooms=new Map();this.sessions=new Map();this.aiDelay=aiDelay;this.resolutionDelay=resolutionDelay;this.dealMs=dealMs;this.graceMs=graceMs;this.maxRooms=maxRooms;this.logger=logger;
+    this.store=store;this.persistenceQueue=Promise.resolve();this.persistenceLastError=null;this.stopping=false;
+  }
+  // Serialize writes globally so a late asynchronous snapshot cannot overwrite
+  // a newer move. Store the private game only in Postgres, never in public logs.
+  _persist(entry){
+    if(!this.store||this.stopping)return;
+    const code=entry.room.code;
+    const payload=clone({version:1,room:entry.room,game:entry.game,
+      revision:entry.revision,aiybaiWindowOpen:entry.aiybaiWindowOpen,
+      resolutionPause:entry.resolutionPause,pauseUntil:entry.pauseUntil,
+      updatedAt:entry.updatedAt,
+      sessions:[...this.sessions.values()].filter(x=>x.roomCode===code)
+        .map(x=>({token:x.token,clientId:x.clientId,roomCode:x.roomCode,
+          name:x.name,lastSeen:x.lastSeen}))});
+    this.persistenceQueue=this.persistenceQueue.then(async()=>{
+      await this.store.save(code,payload);this.persistenceLastError=null;
+    }).catch(err=>{this.persistenceLastError=err.message;this.logger('Persistent room save failed',err.message);});
+  }
+  _persistDeletion(code){
+    if(!this.store||this.stopping)return;
+    this.persistenceQueue=this.persistenceQueue.then(()=>this.store.remove(code))
+      .catch(err=>{this.persistenceLastError=err.message;this.logger('Persistent room delete failed',err.message);});
+  }
+  async flushPersistence(){await this.persistenceQueue;}
+  async restore(){
+    if(!this.store)return 0;
+    await this.store.initialize();
+    const records=await this.store.loadAll();let restored=0;
+    for(const {code,payload} of records){
+      if(!payload||payload.version!==1||payload.room?.code!==code
+        ||!Array.isArray(payload.room.seats))continue;
+      if(this.rooms.size>=this.maxRooms)break;
+      const entry=this._roomEntry(payload.room);
+      entry.game=payload.game||null;
+      entry.revision=Number(payload.revision)||0;
+      // Allow reconnect grace even when a Free Render server wakes after idling.
+      entry.updatedAt=Date.now();
+      entry.aiybaiWindowOpen=!!payload.aiybaiWindowOpen;
+      // Old timers no longer exist. Restart the resolved-Aiy/AI pacing rather
+      // than leave a deadlocked pause or queue an instant unexpected move.
+      entry.resolutionPause=false;entry.pauseUntil=0;
+      if(entry.game?.aiybaiRequest){
+        // No one should be forced into a card transfer during server restart.
+        const request=entry.game.aiybaiRequest;
+        const answer=Core.answerAiybai(entry.game,request.toSeat,false);
+        if(answer.ok)entry.game=answer.state;
+        entry.aiybaiWindowOpen=false;
+      }
+      this.rooms.set(code,entry);
+      for(const seat of entry.room.seats){
+        if(!seat.clientId||seat.isAI)continue;
+        seat.connected=false;
+        seat.reconnectUntil=Date.now()+this.graceMs;
+      }
+      for(const item of payload.sessions||[]){
+        if(!/^[a-f0-9]{64}$/.test(item.token||''))continue;
+        if(!Core.seatForClient(entry.room,item.clientId))continue;
+        if(this.sessions.has(item.token))continue;
+        const session={token:item.token,clientId:item.clientId,roomCode:code,
+          name:item.name,peer:null,lastSeen:Date.now(),disconnectTimer:null};
+        this.sessions.set(session.token,session);
+        session.disconnectTimer=setTimeout(()=>{
+          const live=this.rooms.get(code);
+          if(live&&!session.peer)this._leave(session,live);
+        },this.graceMs);
+      }
+      entry.revision++;restored++;
+      if(entry.game)this._finishDealLater(entry);
+      this._persist(entry);
+      if(entry.game&&!entry.game.roundOver)this._schedule(entry);
+    }
+    await this.flushPersistence();
+    return restored;
   }
   attach(peer) {
     peer._bondiv2={token:null,count:0,windowAt:Date.now()};
@@ -55,7 +129,18 @@ class RoomService {
     if(!entry||!Core.seatForClient(entry.room,s.clientId))throw Error('Room is no longer available.');
     return {s,entry};
   }
-  _roomEntry(room){return {room,game:null,aiTimer:null,resolutionTimer:null,resolutionPause:false,pauseUntil:0,updatedAt:Date.now(),revision:0};}
+  _roomEntry(room){return {room,game:null,aiTimer:null,dealTimer:null,resolutionTimer:null,resolutionPause:false,aiybaiWindowOpen:false,pauseUntil:0,updatedAt:Date.now(),revision:0};}
+  _finishDealLater(entry){
+    clearTimeout(entry.dealTimer);entry.dealTimer=null;
+    const ms=Math.max(0,Number(entry.room.dealUntil||0)-Date.now());
+    if(!ms){entry.room.dealUntil=0;return;}
+    entry.dealTimer=setTimeout(()=>{
+      entry.dealTimer=null;
+      if(!this.rooms.has(entry.room.code)||entry.room.phase!=='game')return;
+      entry.room.dealUntil=0;entry.revision++;
+      this._broadcast(entry);
+    },ms);
+  }
   _create(peer,msg){
     if(peer._bondiv2.token)throw Error('Leave the current room first.');
     if(this.rooms.size>=this.maxRooms)throw Error('Server is full. Try again later.');
@@ -77,13 +162,23 @@ class RoomService {
     const token=String(msg.token||''),session=this.sessions.get(token);
     if(!/^[a-f0-9]{64}$/.test(token)||!session||session.roomCode!==cleanCode(msg.code))throw Error('Session expired. Please join again.');
     const entry=this.rooms.get(session.roomCode);
-    if(!entry||!Core.seatForClient(entry.room,session.clientId))throw Error('Your seat is no longer available.');
+    const oldSeat=entry&&Core.seatForClient(entry.room,session.clientId);
+    if(!oldSeat||oldSeat.aiTakeover)throw Error('Your seat is no longer available.');
+    if(oldSeat.reconnectUntil&&Date.now()>oldSeat.reconnectUntil)
+      throw Error('Session expired. The reconnection window has ended.');
     if(session.disconnectTimer){clearTimeout(session.disconnectTimer);session.disconnectTimer=null;}
-    if(session.peer&&session.peer!==peer){session.peer._bondiv2.token=null;session.peer.close(1000);}
+    if(session.peer&&session.peer!==peer){
+      // A resumed identity has exactly one active connection. Tell the old
+      // tab explicitly, so it does not loop forever and steal the seat back.
+      session.peer._bondiv2.token=null;
+      if(!session.peer.closed)session.peer.sendJSON({type:'SESSION_REPLACED'});
+      session.peer.close(1000);
+    }
     session.peer=peer;peer._bondiv2.token=token;session.lastSeen=Date.now();
     if(entry.room.phase==='lobby')entry.room=Core.applyLobbyAction(entry.room,{type:'RECONNECT',clientId:session.clientId});
     else {const seat=Core.seatForClient(entry.room,session.clientId);if(seat)seat.connected=true;}
     const resumedSeat=Core.seatForClient(entry.room,session.clientId);if(resumedSeat)delete resumedSeat.reconnectUntil;
+    entry.revision++;entry.updatedAt=Date.now();
     peer.sendJSON({type:'WELCOME',code:entry.room.code,clientId:session.clientId,token});
     this._broadcast(entry);
   }
@@ -101,8 +196,8 @@ class RoomService {
     if(action==='REMATCH'){
       if(s.clientId!==entry.room.hostClientId)throw Error('Only the host can request another game.');
       if(entry.room.phase!=='game'||!entry.game||!entry.game.roundOver)throw Error('Finish the current game before starting another.');
-      clearTimeout(entry.aiTimer);clearTimeout(entry.resolutionTimer);
-      entry.aiTimer=null;entry.resolutionTimer=null;entry.resolutionPause=false;entry.pauseUntil=0;
+      clearTimeout(entry.aiTimer);clearTimeout(entry.dealTimer);clearTimeout(entry.resolutionTimer);
+      entry.aiTimer=null;entry.dealTimer=null;entry.resolutionTimer=null;entry.resolutionPause=false;entry.aiybaiWindowOpen=false;entry.pauseUntil=0;
       entry.game=null;
       entry.room.phase='lobby';
       // The previous match keeps human names even after AI takes a departed
@@ -126,15 +221,40 @@ class RoomService {
       if(action==='START'){
         if(s.clientId!==entry.room.hostClientId)throw Error('Only the host can start.');
         const started=Core.startGame(entry.room,Engine,secureRandom);
-        entry.room=started.room;entry.room.matchNumber=(Number(entry.room.matchNumber)||0)+1;entry.game=started.game;entry.revision++;
-        this._broadcast(entry);this._schedule(entry);return;
+        entry.room=started.room;entry.room.matchNumber=(Number(entry.room.matchNumber)||0)+1;
+        entry.room.dealUntil=this.dealMs>0?Date.now()+this.dealMs:0;
+        entry.game=started.game;entry.resolutionPause=false;entry.aiybaiWindowOpen=false;entry.revision++;
+        this._broadcast(entry);this._finishDealLater(entry);this._schedule(entry);return;
       }
       if(!t)throw Error('That action is not allowed in the lobby.');
       const name=t==='SET_NAME'?requireDistinctName(entry.room,msg.name,s.clientId):msg.name;
       entry.room=Core.applyLobbyAction(entry.room,{type:t,clientId:s.clientId,ready:!!msg.ready,seat:msg.seat,name,difficulty:msg.difficulty});
       this._broadcast(entry);return;
     }
+    if(entry.room.phase==='game'&&action==='REQUEST_AIYBAI'){
+      const r=Core.requestAiybai(entry.room,entry.game,s.clientId,
+        entry.aiybaiWindowOpen);
+      if(!r.ok)throw Error(r.error);
+      entry.game=r.state;
+      entry.aiybaiWindowOpen=false;
+      clearTimeout(entry.resolutionTimer);
+      // AI answers a request deliberately; it never takes cards without one.
+      if(Core.isAISeat(entry.room,r.toSeat))
+        entry.resolutionTimer=setTimeout(()=>this._settleAiybai(entry,r.toSeat,true),Math.max(150,this.aiDelay));
+      else
+        // Non-response cancels the request after 30s; it never transfers cards.
+        entry.resolutionTimer=setTimeout(()=>this._settleAiybai(entry,r.toSeat,false),30000);
+      entry.revision++;this._broadcast(entry);return;
+    }
+    if(entry.room.phase==='game'&&action==='ANSWER_AIYBAI'){
+      const seat=Core.seatForClient(entry.room,s.clientId);
+      if(!seat||seat.isAI||!entry.game?.aiybaiRequest||entry.game.aiybaiRequest.toSeat!==seat.seat)
+        throw Error('Only the requested human player may accept or decline.');
+      this._settleAiybai(entry,seat.seat,msg.accept===true);return;
+    }
     if(entry.room.phase!=='game'||action!=='PLAY')throw Error('That action is not allowed during the game.');
+    if(Number(entry.room.dealUntil||0)>Date.now())throw Error('Wait until dealing finishes.');
+    if(entry.game?.aiybaiRequest)throw Error('Wait for the requested player to answer.');
     if(entry.resolutionPause)throw Error('Wait for the Aiy to resolve.');
     const cardId=String(msg.cardId||'');
     const before=entry.game;
@@ -142,28 +262,54 @@ class RoomService {
     if(!r.ok)throw Error(r.error);
     entry.game=r.state;this._afterPlay(entry,before);
   }
+  _settleAiybai(entry,answerSeat,accepted){
+    if(!entry.game?.aiybaiRequest)return;
+    const result=Core.answerAiybai(entry.game,answerSeat,accepted);
+    if(!result.ok){this.logger('Aiybai answer rejected',result.error);return;}
+    clearTimeout(entry.resolutionTimer);
+    entry.resolutionTimer=null;
+    entry.game=result.state;
+    entry.aiybaiWindowOpen=false;
+    entry.resolutionPause=false;entry.pauseUntil=0;
+    if(entry.game.roundOver)entry.room=Core.archiveMatch(entry.room,entry.game);
+    // The original leader resumes immediately after the requested player
+    // agrees or declines. No artificial pause is required.
+    entry.revision++;this._broadcast(entry);this._schedule(entry);
+  }
   _afterPlay(entry,before){
+    clearTimeout(entry.aiTimer);entry.aiTimer=null;
     entry.revision++;
     const resolved=Core.recordAiyResolution(before,entry.game);
     if(entry.game.roundOver)entry.room=Core.archiveMatch(entry.room,entry.game);
-    if(resolved&&!entry.game.roundOver){
-      entry.resolutionPause=true;entry.pauseUntil=Date.now()+this.resolutionDelay;
-      this._broadcast(entry);
-      clearTimeout(entry.resolutionTimer);
+    // The new leader may request Aiybai at their own pace until they
+    // either start the next Aiy or initiate one consensual request.
+    entry.aiybaiWindowOpen=!!(resolved&&!entry.game.roundOver);
+    clearTimeout(entry.resolutionTimer);
+    entry.resolutionTimer=null;
+    // Hold the completed cards on every player's screen for one second,
+    // including when an AI wins the Aiy or only two players remain. The
+    // following AI lead is immediate when this review ends, so the normal
+    // 1000ms AI thinking timer is not stacked on top of the review.
+    const reviewAiy=entry.aiybaiWindowOpen&&this.resolutionDelay>0;
+    entry.resolutionPause=reviewAiy;
+    entry.pauseUntil=reviewAiy?Date.now()+this.resolutionDelay:0;
+    this._broadcast(entry);
+    if(reviewAiy){
       entry.resolutionTimer=setTimeout(()=>{
-        if(!this.rooms.has(entry.room.code))return;
-        entry.resolutionPause=false;entry.pauseUntil=0;entry.revision++;
-        this._broadcast(entry);this._schedule(entry);
+        if(!this.rooms.has(entry.room.code)||entry.game?.aiybaiRequest)return;
+        entry.resolutionTimer=null;
+        entry.resolutionPause=false;entry.pauseUntil=0;
+        entry.revision++;this._broadcast(entry);this._schedule(entry,0);
       },this.resolutionDelay);
-    }else{this._broadcast(entry);this._schedule(entry);}
+    }else this._schedule(entry);
   }
-  _schedule(entry){
+  _schedule(entry,delay=this.aiDelay){
     clearTimeout(entry.aiTimer);
     if(!entry.game||entry.game.roundOver||entry.resolutionPause)return;
     const i=entry.game.currentPlayer;
     if(!Core.isAISeat(entry.room,i))return;
     entry.aiTimer=setTimeout(()=>{
-      if(!this.rooms.has(entry.room.code)||entry.game.roundOver||entry.resolutionPause||!Core.isAISeat(entry.room,entry.game.currentPlayer))return;
+      if(!this.rooms.has(entry.room.code)||entry.game.roundOver||entry.resolutionPause||entry.game.aiybaiRequest||Number(entry.room.dealUntil||0)>Date.now()||!Core.isAISeat(entry.room,entry.game.currentPlayer))return;
       const seat=entry.game.currentPlayer;
       const card=Engine.chooseAICard(entry.game,seat,entry.room.aiDifficulty||'hard');
       if(!card){this.logger('AI had no move',entry.room.code);return;}
@@ -176,15 +322,16 @@ class RoomService {
       if(tactic) r.state.log.splice(before.log.length,0,
         `AI lead insight · ${before.players[seat].name} (Seat ${seat+1}) · ${card.suit}: ${tactic.explanation} (Seat ${tactic.nextSeat}).`);
       entry.game=r.state;this._afterPlay(entry,before);
-    },this.aiDelay);
+    },Math.max(0,delay,Number(entry.room.dealUntil||0)-Date.now()));
   }
   _broadcast(entry){
     const room=visibleRoom(entry.room);
+    this._persist(entry);
     for(const s of this.sessions.values()){
       if(s.roomCode!==entry.room.code||!s.peer||s.peer.closed)continue;
       const seat=Core.seatForClient(entry.room,s.clientId);
       if(!seat)continue;
-      const view=entry.game?Core.projectGame(entry.room,entry.game,s.clientId,entry.resolutionPause):null;
+      const view=entry.game?Core.projectGame(entry.room,entry.game,s.clientId,entry.resolutionPause,entry.aiybaiWindowOpen):null;
       if(view)view.log=translateFinishLogs(view.log,entry.room);
       s.peer.sendJSON({type:'SNAPSHOT',room,view,clientId:s.clientId,seat:seat.seat,isHost:s.clientId===room.hostClientId,revision:entry.revision});
     }
@@ -202,6 +349,11 @@ class RoomService {
       if(entry.room.phase==='closed')this._closeRoom(entry.room.code);
       else {entry.revision++;this._broadcast(entry);}
     }else if(entry.room.phase==='game'){
+      if(entry.game?.aiybaiRequest){
+        const seat=Core.seatForClient(entry.room,s.clientId);
+        if(seat&&[entry.game.aiybaiRequest.fromSeat,entry.game.aiybaiRequest.toSeat].includes(seat.seat))
+          this._settleAiybai(entry,entry.game.aiybaiRequest.toSeat,false);
+      }
       const previous=Core.seatForClient(entry.room,s.clientId);
       const previousName=previous.name;
       const r=Core.replaceClientWithAI(entry.room,s.clientId);entry.room=r.room;
@@ -225,8 +377,10 @@ class RoomService {
     }
     if(s.disconnectTimer)clearTimeout(s.disconnectTimer);
     this.sessions.delete(s.token);
+    if(this.rooms.has(entry.room.code))this._persist(entry);
   }
   _disconnect(peer) {
+    if(this.stopping)return;
     const token=peer._bondiv2?.token;
     if(!token)return;
     const s=this.sessions.get(token);
@@ -238,6 +392,7 @@ class RoomService {
     else {const seat=Core.seatForClient(entry.room,s.clientId);if(seat)seat.connected=false;}
     const seat=Core.seatForClient(entry.room,s.clientId);
     if(seat)seat.reconnectUntil=Date.now()+this.graceMs;
+    entry.revision++;entry.updatedAt=Date.now();
     this._broadcast(entry);
     s.disconnectTimer=setTimeout(()=>{
       const latest=this.rooms.get(s.roomCode);
@@ -248,8 +403,9 @@ class RoomService {
   _closeRoom(code){
     const entry=this.rooms.get(code);
     if(!entry)return;
-    clearTimeout(entry.aiTimer);clearTimeout(entry.resolutionTimer);
+    clearTimeout(entry.aiTimer);clearTimeout(entry.dealTimer);clearTimeout(entry.resolutionTimer);
     this.rooms.delete(code);
+    this._persistDeletion(code);
     for(const s of [...this.sessions.values()]){
       if(s.roomCode!==code)continue;
       if(s.peer&&!s.peer.closed){s.peer.sendJSON({type:'ROOM_CLOSED'});s.peer._bondiv2.token=null;}
@@ -263,6 +419,19 @@ class RoomService {
       if(!connected&&now-entry.updatedAt>IDLE_ROOM_MS)this._closeRoom(code);
     }
   }
-  shutdown(){for(const code of [...this.rooms.keys()])this._closeRoom(code);}
+  shutdown({preserveStore=false}={}){
+    if(preserveStore){
+      // SIGTERM/redeploy is not a player LEAVE. Keep tokens and games in DB.
+      // Never send ROOM_CLOSED, which would erase clients' resume tokens.
+      this.stopping=true;
+      for(const entry of this.rooms.values()){
+        clearTimeout(entry.aiTimer);clearTimeout(entry.dealTimer);clearTimeout(entry.resolutionTimer);
+      }
+      for(const session of this.sessions.values()){
+        clearTimeout(session.disconnectTimer);
+        if(session.peer&&!session.peer.closed)session.peer.close(1012);
+      }
+    }else for(const code of [...this.rooms.keys()])this._closeRoom(code);
+  }
 }
-module.exports={RoomService,cleanCode,translateFinishLogs,requireDistinctName};
+module.exports={RoomService,DEAL_MS,cleanCode,translateFinishLogs,requireDistinctName};

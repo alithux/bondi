@@ -1,0 +1,79 @@
+{
+  "timestamp": "2026-10-17T10:51:33.395Z",
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "linux",
+    "cpus": 9,
+    "totalMemoryGb": 10
+  },
+  "scenarios": [
+    {
+      "roomsRequested": 10,
+      "roomsStarted": 10,
+      "virtualPlayers": 40,
+      "matchesCompleted": 10,
+      "matchesUnfinished": 0,
+      "gameActions": 745,
+      "elapsedSec": 3.2,
+      "actionLatencyP50Ms": 4.1,
+      "actionLatencyP95Ms": 7.2,
+      "healthLatencyP95Ms": 7.5,
+      "serverPeakRssMb": null,
+      "observedPeakRooms": 10,
+      "room101Rejected": null,
+      "errors": [],
+      "errorCount": 0
+    },
+    {
+      "roomsRequested": 25,
+      "roomsStarted": 25,
+      "virtualPlayers": 100,
+      "matchesCompleted": 25,
+      "matchesUnfinished": 0,
+      "gameActions": 2002,
+      "elapsedSec": 3.7,
+      "actionLatencyP50Ms": 9.5,
+      "actionLatencyP95Ms": 18.1,
+      "healthLatencyP95Ms": 10.4,
+      "serverPeakRssMb": null,
+      "observedPeakRooms": 25,
+      "room101Rejected": null,
+      "errors": [],
+      "errorCount": 0
+    },
+    {
+      "roomsRequested": 50,
+      "roomsStarted": 50,
+      "virtualPlayers": 200,
+      "matchesCompleted": 50,
+      "matchesUnfinished": 0,
+      "gameActions": 3792,
+      "elapsedSec": 4.5,
+      "actionLatencyP50Ms": 18.7,
+      "actionLatencyP95Ms": 28,
+      "healthLatencyP95Ms": 16.5,
+      "serverPeakRssMb": null,
+      "observedPeakRooms": 50,
+      "room101Rejected": null,
+      "errors": [],
+      "errorCount": 0
+    },
+    {
+      "roomsRequested": 100,
+      "roomsStarted": 100,
+      "virtualPlayers": 400,
+      "matchesCompleted": 100,
+      "matchesUnfinished": 0,
+      "gameActions": 7704,
+      "elapsedSec": 6.1,
+      "actionLatencyP50Ms": 36.1,
+      "actionLatencyP95Ms": 53.2,
+      "healthLatencyP95Ms": 47.8,
+      "serverPeakRssMb": null,
+      "observedPeakRooms": 100,
+      "room101Rejected": true,
+      "errors": [],
+      "errorCount": 0
+    }
+  ]
+}

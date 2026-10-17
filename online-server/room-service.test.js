@@ -20,7 +20,7 @@ function join(service,code,name='Guest'){const p=peer(service);p.write({type:'JO
 async function test(name,fn){await fn();console.log('PASS',name);}
 (async()=>{
  await test('creates/join rooms; lobby identity and host-only controls',async()=>{
-  const s=new RoomService({aiDelay:1,resolutionDelay:1});
+  const s=new RoomService({dealMs:0,aiDelay:1,resolutionDelay:1});
   const h=create(s),code=h.latest('WELCOME').code;
   const g=join(s,code);
   assert.notEqual(h.latest('WELCOME').token,g.latest('WELCOME').token);
@@ -34,7 +34,7 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   s.shutdown();
  });
  await test('hidden opponents cards and valid move enforcement',async()=>{
-  const s=new RoomService({aiDelay:200,resolutionDelay:1});
+  const s=new RoomService({dealMs:0,aiDelay:200,resolutionDelay:1});
   const h=create(s),code=h.latest('WELCOME').code,g=join(s,code);
   cmd(h,'ADD_AI');cmd(h,'ADD_AI');cmd(h,'DEALER',{seat:3});
   cmd(h,'READY',{ready:true});cmd(g,'READY',{ready:true});cmd(h,'START');
@@ -50,7 +50,7 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   s.shutdown();
  });
  await test('opponent cannot forge turn, dealer, game state or another seat',async()=>{
-  const s=new RoomService({aiDelay:1000,resolutionDelay:1});
+  const s=new RoomService({dealMs:0,aiDelay:1000,resolutionDelay:1});
   const h=create(s),code=h.latest('WELCOME').code,g=join(s,code);
   cmd(h,'ADD_AI');cmd(h,'ADD_AI');cmd(h,'READY',{ready:true});cmd(g,'READY',{ready:true});cmd(h,'START');
   const snap=g.latest('SNAPSHOT'),before=s.rooms.get(code).game;
@@ -62,7 +62,7 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   s.shutdown();
  });
  await test('disconnect and resume with secret restores seat; unknown token refused',async()=>{
-  const s=new RoomService({graceMs:500,aiDelay:200,resolutionDelay:1});
+  const s=new RoomService({dealMs:0,graceMs:500,aiDelay:200,resolutionDelay:1});
   const h=create(s),code=h.latest('WELCOME').code,g=join(s,code);
   const {token,clientId}=g.latest('WELCOME');
   g.close();
@@ -74,8 +74,44 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   assert.equal(r.latest('SNAPSHOT').room.seats[1].connected,true);
   s.shutdown();
  });
+ await test('Stage 5.11 reconnects an interrupted game to its exact seat and private Aiybai',async()=>{
+   const s=new RoomService({dealMs:0,graceMs:250,aiDelay:10000,resolutionDelay:0});
+   try{
+     const h=create(s,'PC'),code=h.latest('WELCOME').code,g=join(s,code,'Phone');
+     cmd(h,'ADD_AI');cmd(h,'ADD_AI');cmd(h,'READY',{ready:true});cmd(g,'READY',{ready:true});cmd(h,'START');
+     const original=g.latest('WELCOME'),entry=s.rooms.get(code);
+     const hand=entry.game.players[1].hand.map(c=>c.id);
+     const originalRevision=h.latest('SNAPSHOT').revision;
+     g.close();
+     let offline=h.latest('SNAPSHOT');
+     assert.equal(offline.room.seats[1].connected,false);
+     assert.equal(offline.room.seats[1].isAI,false,'no premature AI takeover');
+     assert.equal(offline.room.seats[1].reconnectUntil> Date.now(),true);
+     assert(offline.revision>originalRevision,'opponents receive new disconnect state');
+     const resumed=peer(s);resumed.write({type:'RESUME',code,token:original.token});
+     const snap=resumed.latest('SNAPSHOT');
+     assert.equal(snap.clientId,original.clientId);
+     assert.equal(snap.seat,1);
+     assert.equal(snap.view.players[1].hand.length,13);
+     assert.deepEqual(snap.view.players[1].hand.map(c=>c.id),hand,'private hand is preserved');
+     assert.equal(snap.view.players[0].hand.length,0,'other players cards remain hidden');
+     assert.equal(snap.room.seats[1].connected,true);
+     assert.equal(snap.room.seats[1].reconnectUntil,undefined);
+     assert.equal(snap.room.seats[1].aiTakeover,undefined);
+     assert.equal(s.sessions.size,2,'no duplicate session was created');
+     const second=peer(s);second.write({type:'RESUME',code,token:original.token});
+     assert.equal(resumed.latest('SESSION_REPLACED').type,'SESSION_REPLACED');
+     assert.equal(resumed.closed,true,'old tab was superseded');
+     assert.equal(second.latest('SNAPSHOT').seat,1);
+     assert.equal(s.rooms.get(code).room.seats[1].connected,true,'stale socket close did not disconnect seat');
+     cmd(resumed,'PLAY',{cardId:hand[0]});
+     assert.match(resumed.latest('ERROR').message,/reconnect|join/i,'old socket cannot make moves');
+     await wait(280);
+     assert.equal(s.rooms.get(code).room.seats[1].isAI,false,'cancelled grace timeout cannot take seat over');
+   }finally{s.shutdown();}
+ });
  await test('Stage 5.2 rejects duplicate online identities without consuming a seat',async()=>{
-  const s=new RoomService({graceMs:200});
+  const s=new RoomService({dealMs:0,graceMs:200});
   const h=create(s,'Ali'),code=h.latest('WELCOME').code;
   const dup=join(s,code,'  aLi  ');
   assert.match(dup.latest('ERROR').message,/name is already used/i);
@@ -90,7 +126,7 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   s.shutdown();
  });
  await test('Stage 5.2 disconnected seat shows server-provided deadline and clears on resume',async()=>{
-  const s=new RoomService({graceMs:120,aiDelay:2,resolutionDelay:2});
+  const s=new RoomService({dealMs:0,graceMs:120,aiDelay:2,resolutionDelay:2});
   const h=create(s,'Ali'),code=h.latest('WELCOME').code,g=join(s,code,'Mariam');
   const {token,clientId}=g.latest('WELCOME');
   const before=Date.now();g.close();
@@ -106,7 +142,7 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   s.shutdown();
  });
  await test('Stage 5.2 expired disconnected game seat becomes AI and gameplay continues',async()=>{
-  const s=new RoomService({graceMs:80,aiDelay:2,resolutionDelay:1});
+  const s=new RoomService({dealMs:0,graceMs:80,aiDelay:2,resolutionDelay:1});
   const h=create(s,'Ali'),code=h.latest('WELCOME').code,g=join(s,code,'Mariam');
   cmd(h,'ADD_AI');cmd(h,'ADD_AI');cmd(h,'READY',{ready:true});cmd(g,'READY',{ready:true});cmd(h,'START');
   assert.equal(s.rooms.get(code).room.phase,'game');
@@ -122,7 +158,7 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   s.shutdown();
  });
  await test('real WebSocket handshake over Node HTTP, welcome and room state',async()=>{
-  const s=new RoomService();
+  const s=new RoomService({dealMs:0});
   const server=http.createServer((req,res)=>{res.writeHead(200);res.end('OK');});
   server.on('upgrade',(req,sock,head)=>upgradeWebSocket(req,sock,head,p=>s.attach(p),{allowedOrigins:[]}));
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -138,7 +174,7 @@ async function test(name,fn){await fn();console.log('PASS',name);}
   ws.close();await wait(10);s.shutdown();await new Promise(resolve=>server.close(resolve));
  });
  await test('Stage 5.3 rematch keeps room, resets human readiness and creates fresh game',async()=>{
-  const s=new RoomService({aiDelay:500,resolutionDelay:0});
+  const s=new RoomService({dealMs:0,aiDelay:500,resolutionDelay:0});
   try{
    const h=create(s,'Ayya'),code=h.latest('WELCOME').code,g=join(s,code,'Fathun');
    cmd(h,'ADD_AI');cmd(h,'ADD_AI');cmd(h,'READY',{ready:true});cmd(g,'READY',{ready:true});cmd(h,'START');
@@ -160,7 +196,7 @@ async function test(name,fn){await fn();console.log('PASS',name);}
  });
  // Server-local gameplay stress: single human + three Hard AI, no leaking or illegal plays.
  await test('20 complete online rooms with Hard AI and private seat projections',async()=>{
-  const s=new RoomService({aiDelay:0,resolutionDelay:0});
+  const s=new RoomService({dealMs:0,aiDelay:0,resolutionDelay:0});
   let totalMoves=0;
   for(let game=0;game<20;game++){
    const h=create(s,`Human${game}`),code=h.latest('WELCOME').code;

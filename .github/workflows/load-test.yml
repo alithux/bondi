@@ -6,6 +6,10 @@ on:
     paths:
       - 'load-test/**'
       - '.github/workflows/load-test.yml'
+      - 'online-server/**'
+      - 'source-part-*.js'
+      - 'game-engine*.js'
+      - 'multiplayer-core.js'
 
 permissions:
   contents: read
@@ -19,6 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify unfinished matches fail with diagnostics
+        run: node load-test/regression.test.js
       - name: Run real-WebSocket staged scenarios in isolated local servers
         run: node load-test/run.js --output=load-test-results.json
       - name: Publish JSON metrics
@@ -29,3 +35,4 @@ jobs:
           path: load-test-results.json
           if-no-files-found: ignore
           retention-days: 14
+

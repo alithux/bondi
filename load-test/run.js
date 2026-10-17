@@ -146,6 +146,11 @@ async function playRoom(room,deadline,latencies){
   const state=host.last('SNAPSHOT');
   if(!state?.view)throw Error('Missing game snapshot');
   if(state.view.roundOver)return {completed:true,moves};
+  // Wait for the authoritative reveal snapshot, even if the local deadline has elapsed.
+  if(Number(state.room.dealUntil||0)>0){
+   await host.waitFor(m=>m.type==='SNAPSHOT'&&m.revision>state.revision&&m.view&&Number(m.room.dealUntil||0)===0,12000);
+   continue;
+  }
   if(state.view.resolutionPause){
    await host.waitFor(m=>m.type==='SNAPSHOT'&&m.revision>state.revision&&m.view&&!m.view.resolutionPause,12000);
    continue;
@@ -235,9 +240,9 @@ function markdown(results){
  const heading='| Rooms | Virtual players | Matches completed | Actions | P95 action ms | P95 health ms | Peak server RAM MB | Errors |';
  const divider='|---:|---:|---:|---:|---:|---:|---:|---:|';
  return ['# BONDI isolated multiplayer load test','',
-  'Run location: local Node.js process on GitHub Actions (NOT the live Render server).',
+  'Run location: isolated local Node.js process'+(process.env.GITHUB_ACTIONS?' on GitHub Actions':'')+' (NOT the live Render server).',
   'Simulated players are four real WebSocket clients per room using legal BONDI moves.',
-  'Each scenario starts a fresh isolated server. Matches that do not finish within the bounded time window are reported as unfinished.',
+  'Each scenario starts a fresh isolated server. Unfinished matches fail the run and remain in the JSON report.',
   '',heading,divider,...results.map(r=>`| ${r.roomsStarted} | ${r.virtualPlayers} | ${r.matchesCompleted}/${r.roomsRequested} | ${r.gameActions} | ${r.actionLatencyP95Ms??'n/a'} | ${r.healthLatencyP95Ms??'n/a'} | ${r.serverPeakRssMb??'n/a'} | ${r.errorCount} |`),
   '','100-room configured cap enforced: '+(results.find(r=>r.roomsRequested===100)?.room101Rejected===true?'Yes':'Not checked'),
   '','Limitations: one GitHub Actions machine is not a Render Free instance; this does not establish production capacity or uptime.'
@@ -246,7 +251,10 @@ function markdown(results){
 async function main(){
  assert(typeof WebSocket==='function','This test requires Node.js 22+ native WebSocket.');
  const quick=process.argv.includes('--quick');
- const scenarios=quick?[[2,18000],[5,25000]]:[[10,30000],[25,45000],[50,60000],[100,90000]];
+ const budgetArg=process.argv.find(x=>x.startsWith('--budget-ms='));
+ const budgetOverride=budgetArg?Number(budgetArg.slice('--budget-ms='.length)):null;
+ assert(budgetOverride===null||(Number.isInteger(budgetOverride)&&budgetOverride>=0),'--budget-ms must be a nonnegative integer');
+ const scenarios=(quick?[[2,18000],[5,25000]]:[[10,30000],[25,45000],[50,60000],[100,90000]]).map(([n,b])=>[n,budgetOverride??b]);
  const outputFile=process.argv.find(x=>x.startsWith('--output='))?.split('=').slice(1).join('=')||'';
  const results=[];
  for(const [rooms,budgetMs] of scenarios){
@@ -254,7 +262,9 @@ async function main(){
   const data=await stage(rooms,budgetMs);
   results.push(data);
   console.log('SCENARIO',JSON.stringify(data));
-  if(data.errorCount || data.roomsStarted!==rooms)throw Error('Scenario had connection/gameplay/health errors at '+rooms+' rooms');
+  // Save diagnostics before enforcing success so failing CI retains its artifact.
+  if(outputFile)fs.writeFileSync(outputFile,JSON.stringify({timestamp:new Date().toISOString(),environment:{node:process.version,platform:os.platform(),cpus:os.cpus().length,totalMemoryGb:Math.round(os.totalmem()/1073741824)},scenarios:results},null,2)+'\n');
+  if(data.errorCount || data.roomsStarted!==rooms || data.matchesCompleted!==rooms || data.matchesUnfinished!==0)throw Error('Scenario failed: errors or unfinished matches at '+rooms+' rooms');
  }
  const report=markdown(results);
  console.log(report);
@@ -262,3 +272,4 @@ async function main(){
  if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,report+'\n');
 }
 main().catch(err=>{console.error('LOAD TEST FAILED:',err.stack||err);process.exitCode=1;});
+

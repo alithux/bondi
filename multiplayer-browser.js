@@ -158,7 +158,7 @@
   }
 
   class MultiplayerClient {
-    constructor({ engine, onUpdate, onError, aiDifficulty = 'hard', aiDelay = 650, resolutionDelay = 1800 } = {}) {
+    constructor({ engine, onUpdate, onError, aiDifficulty = 'hard', aiDelay = 1000, resolutionDelay = 1000 } = {}) {
       if (!engine) throw new Error('BONDI engine is required.');
       this.engine = engine;
       this.onUpdate = typeof onUpdate === 'function' ? onUpdate : () => {};
@@ -174,6 +174,7 @@
       this.transport = null;
       this.isHost = false;
       this.resolutionPause = false;
+      this.aiybaiWindowOpen = false;
       this.aiTimer = null;
       this.resolutionTimer = null;
       this.joinTimer = null;
@@ -218,10 +219,11 @@
       this.room = JSON.parse(JSON.stringify(shared.room));
       this.game = JSON.parse(JSON.stringify(shared.game));
       this.resolutionPause = !!shared.resolutionPause;
+      this.aiybaiWindowOpen = !!shared.aiybaiWindowOpen;
       this.pauseUntil = Number(shared.pauseUntil || 0);
       this.sharedRevision = Number(shared.revision || 0);
       this.sharedUpdatedAt = Number(shared.updatedAt || 0);
-      this.view = Core.projectGame(this.room, this.game, this.clientId, this.resolutionPause);
+      this.view = Core.projectGame(this.room, this.game, this.clientId, this.resolutionPause, this.aiybaiWindowOpen);
       if (emit) this._emit();
       return true;
     }
@@ -234,6 +236,7 @@
         room: this.room,
         game: this.game,
         resolutionPause: !!this.resolutionPause,
+        aiybaiWindowOpen: !!this.aiybaiWindowOpen,
         pauseUntil: Number(this.pauseUntil || 0),
         revision,
         updatedAt: Date.now(),
@@ -242,7 +245,7 @@
       if (!sharedGameWrite(this.room.code, payload)) return false;
       this.sharedRevision = revision;
       this.sharedUpdatedAt = payload.updatedAt;
-      this.view = Core.projectGame(this.room, this.game, this.clientId, this.resolutionPause);
+      this.view = Core.projectGame(this.room, this.game, this.clientId, this.resolutionPause, this.aiybaiWindowOpen);
       if (emit) this._emit();
       return true;
     }
@@ -255,22 +258,24 @@
       const revision = Number(shared.revision || 0);
       if (!force && revision <= this.sharedRevision) {
         if (this.resolutionPause && this.pauseUntil && Date.now() >= this.pauseUntil && this._isActiveTab()) {
+          if (this.game?.aiybaiRequest) { this._answerSharedAiybai(this.game.aiybaiRequest.toSeat, false); return true; }
           this.resolutionPause = false;
           this.pauseUntil = 0;
           this._commitSharedGame();
           this._broadcastViews();
-          this._scheduleNext();
+          this._scheduleNext(0);
           return true;
         }
         return false;
       }
       if (!this._adoptShared(shared, true)) return false;
       if (this.resolutionPause && this.pauseUntil && Date.now() >= this.pauseUntil && this._isActiveTab()) {
+          if (this.game?.aiybaiRequest) { this._answerSharedAiybai(this.game.aiybaiRequest.toSeat, false); return true; }
         this.resolutionPause = false;
         this.pauseUntil = 0;
         this._commitSharedGame();
         this._broadcastViews();
-        this._scheduleNext();
+        this._scheduleNext(0);
       }
       return true;
     }
@@ -337,12 +342,56 @@
         this.room.matchNumber = (Number(this.room.matchNumber) || 0) + 1;
         this.game = started.game;
         this.resolutionPause = false;
+        this.aiybaiWindowOpen = false;
         this.pauseUntil = 0;
         this._commitSharedGame();
         this._broadcastRoom();
         this._broadcastViews();
         this._scheduleNext();
       } catch (e) { this._fail(e.message); }
+    }
+
+    requestAiybai() {
+      if (!this.room || this.room.phase !== 'game') return;
+      this._syncSharedGame(true);
+      const r = Core.requestAiybai(this.room, this.game, this.clientId,
+        this.aiybaiWindowOpen);
+      if (!r.ok) return this._fail(r.error);
+      clearTimeout(this.resolutionTimer);
+      this.game = r.state;
+      this.aiybaiWindowOpen = false;
+      this.resolutionPause = true;
+      this.pauseUntil = Date.now()+30000;
+      this._commitSharedGame();
+      this._broadcastViews();
+      const expected = this.sharedRevision;
+      if (Core.isAISeat(this.room, r.toSeat)) {
+        this.resolutionTimer = setTimeout(() => {
+          const latest = sharedGameRead(this.room?.code);
+          if (latest && latest.revision !== expected) { this._syncSharedGame(true); return; }
+          this._answerSharedAiybai(r.toSeat,true);
+        },Math.max(150,this.aiDelay));
+      }
+    }
+
+    answerAiybai(accept) {
+      this._syncSharedGame(true);
+      const seat = this.room && Core.seatForClient(this.room,this.clientId);
+      if (!seat || !this.game?.aiybaiRequest || this.game.aiybaiRequest.toSeat !== seat.seat)
+        return this._fail('Only the requested player can agree or decline.');
+      this._answerSharedAiybai(seat.seat,accept===true);
+    }
+
+    _answerSharedAiybai(seat,accept) {
+      const latest = sharedGameRead(this.room?.code);
+      if (latest && latest.room && latest.game) this._adoptShared(latest,false);
+      const r = Core.answerAiybai(this.game,seat,accept);
+      if (!r.ok) return this._fail(r.error);
+      clearTimeout(this.resolutionTimer);
+      this.game = r.state;this.aiybaiWindowOpen=false;
+      this.resolutionPause=false;this.pauseUntil=0;
+      if (this.game.roundOver) this.room = Core.archiveMatch(this.room,this.game);
+      this._commitSharedGame();this._broadcastViews();this._scheduleNext();
     }
 
     playCard(cardId) {
@@ -358,6 +407,7 @@
       const shared = sharedGameRead(code);
       if (shared && shared.room && shared.game) this._adoptShared(shared, false);
       if (this.resolutionPause) return this._sendPlayError(clientId, 'Wait for the Aiy resolution to finish.');
+      if (this.game.aiybaiRequest) return this._sendPlayError(clientId, 'Wait for the Aiybai request to be answered.');
       const before = this.game;
       const result = Core.applyHumanPlay(this.room, this.game, clientId, cardId, this.engine);
       if (!result.ok) return this._sendPlayError(clientId, result.error);
@@ -375,42 +425,41 @@
     }
 
     _afterPlay(before) {
+      clearTimeout(this.aiTimer);this.aiTimer=null;
       const resolved = Core.recordAiyResolution(before, this.game);
       if (this.game.roundOver) this.room = Core.archiveMatch(this.room, this.game);
+      this.aiybaiWindowOpen = !!(resolved && !this.game.roundOver);
       clearTimeout(this.resolutionTimer);
-      if (resolved && !this.game.roundOver) {
-        this.resolutionPause = true;
-        this.pauseUntil = Date.now() + this.resolutionDelay;
-        this._commitSharedGame();
-        this._broadcastViews();
-        const expectedRevision = this.sharedRevision;
+      // Keep every completed Aiy on screen for 1000ms, even when the
+      // following leader is AI. An AI's next lead happens immediately after
+      // review instead of waiting an additional AI thinking interval.
+      const reviewAiy = this.aiybaiWindowOpen && this.resolutionDelay>0;
+      this.resolutionPause = reviewAiy;
+      this.pauseUntil = reviewAiy ? Date.now()+this.resolutionDelay : 0;
+      this._commitSharedGame();
+      this._broadcastViews();
+      if (reviewAiy) {
+        const expected = this.sharedRevision;
         this.resolutionTimer = setTimeout(() => {
-          const latest = sharedGameRead(this.room && this.room.code);
-          if (latest && Number(latest.revision || 0) !== expectedRevision) { this._syncSharedGame(true); return; }
-          this.resolutionPause = false;
-          this.pauseUntil = 0;
-          this._commitSharedGame();
-          this._broadcastViews();
-          this._scheduleNext();
+          const latest = sharedGameRead(this.room?.code);
+          if (latest && latest.revision !== expected) { this._syncSharedGame(true); return; }
+          if (this.game?.aiybaiRequest) return;
+          this.resolutionPause = false;this.pauseUntil = 0;
+          this._commitSharedGame();this._broadcastViews();this._scheduleNext(0);
         }, this.resolutionDelay);
-      } else {
-        this.pauseUntil = 0;
-        this._commitSharedGame();
-        this._broadcastViews();
-        this._scheduleNext();
-      }
+      } else this._scheduleNext();
     }
 
-    _scheduleNext() {
+    _scheduleNext(delay = this.aiDelay) {
       clearTimeout(this.aiTimer);
-      if (!this.game || this.game.roundOver || this.resolutionPause) return;
+      if (!this.game || this.game.roundOver || this.resolutionPause || this.game.aiybaiRequest) return;
       const seat = this.game.currentPlayer;
       if (!Core.isAISeat(this.room, seat)) return;
       const expectedRevision = this.sharedRevision;
       this.aiTimer = setTimeout(() => {
         const latest = sharedGameRead(this.room && this.room.code);
         if (latest && Number(latest.revision || 0) !== expectedRevision) { this._syncSharedGame(true); return; }
-        if (!this.game || this.game.roundOver || this.resolutionPause || !Core.isAISeat(this.room, this.game.currentPlayer)) return;
+        if (!this.game || this.game.roundOver || this.resolutionPause || this.game.aiybaiRequest || !Core.isAISeat(this.room, this.game.currentPlayer)) return;
         const i = this.game.currentPlayer;
         const card = this.engine.chooseAICard(this.game, i, this.room.aiDifficulty || 'hard');
         if (!card) return this._fail('AI could not choose a card.');
@@ -419,7 +468,7 @@
         if (!result.ok) return this._fail(result.error);
         this.game = result.state;
         this._afterPlay(before);
-      }, this.aiDelay);
+      }, Math.max(0, delay));
     }
 
     _broadcastRoom() {
@@ -437,7 +486,7 @@
       if (!this.room || !this.game) return;
       this.room.seats.forEach(seat => {
         if (!seat || seat.isAI || !seat.clientId) return;
-        const view = Core.projectGame(this.room, this.game, seat.clientId, this.resolutionPause);
+        const view = Core.projectGame(this.room, this.game, seat.clientId, this.resolutionPause, this.aiybaiWindowOpen);
         if (seat.clientId === this.clientId) {
           this.view = view;
           this._emit();
@@ -520,6 +569,7 @@
       this.view = null;
       this.isHost = false;
       this.resolutionPause = false;
+      this.aiybaiWindowOpen = false;
       this.pauseUntil = 0;
       this.sharedRevision = 0;
       this.sharedUpdatedAt = 0;
