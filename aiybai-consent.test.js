@@ -90,7 +90,7 @@ class FakePeer extends EventEmitter{
 function connect(service){const p=new FakePeer();service.attach(p);return p;}
 const action=(p,a,rest={})=>p.write({type:'ACTION',action:a,...rest});
 async function online(){
- const service=new RoomService({aiDelay:10000,resolutionDelay:5000});
+ const service=new RoomService({dealMs:0,aiDelay:10000,resolutionDelay:5000});
  try{
   const host=connect(service);host.write({type:'CREATE',name:'Alice'});
   const code=host.latest('WELCOME').code;
