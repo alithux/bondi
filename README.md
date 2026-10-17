@@ -2,6 +2,9 @@
 
 ## Current release
 
+**Aiybai requests are manual:** use Game menu → Request Aiybai when you choose to ask the next active player. Simply becoming eligible after an Aiy no longer opens a panel over your cards. Opening the option asks for confirmation; Cancel returns to normal play without sending a request. Incoming requests still show Agree/Decline. Existing server eligibility and consent rules remain unchanged.
+
+
 BONDI supports solo play and online multiplayer, a modern mobile table, Straight/Arc Aiybai selection, shuffle/deal animations, and public card flights into the Aiy. The opening dealing phase hides cards and blocks both human and AI plays until dealing completes. Solo strategy logs use the same build label as the visible page header.
 
 - Installable PWA with offline solo play after the public app shell has been cached. Solo progress is not retained after closing/reloading.

@@ -2,7 +2,7 @@
    Only publicly shipped static files are cached. Room snapshots, WebSocket
    traffic, credentials, and opponent Aiybai never enter this cache. */
 'use strict';
-const CACHE_NAME = 'bondi-static-v5.15c1-metadata1';
+const CACHE_NAME = 'bondi-static-v5.15c1-manual-aiybai';
 const APP_SHELL = './';
 const PRECACHE = [
   APP_SHELL,
