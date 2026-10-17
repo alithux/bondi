@@ -8,7 +8,8 @@ const html=fs.readFileSync(__dirname+'/index.html','utf8');
 const script=html.slice(html.indexOf('<script>')+8,html.lastIndexOf('</script>'));
 for(const id of ['gameHud','gameMenu','hudRoom','hudTurn','hudLead','hudConnection','aiyProgress',
   'gameArea','seats','aiy','gamePresence','play','clear','handLayout','handPreview',
-  'selectedCardMini','soloPlayingBar','multiplayerBar','copyFullLog','retryGame','leaveGame']){
+  'selectedCardMini','soloPlayingBar','multiplayerBar','copyFullLog','retryGame','leaveGame',
+  'openAiybaiRequest','aiybaiMenuHint','aiybaiShortcut','aiybaiOfferPanel']){
   assert.match(html,new RegExp('id="'+id+'"'),'existing required controls must remain: '+id);
 }
 assert.match(html,/#gameArea:not\(\.hidden\)\{[^}]*height:100dvh/,
@@ -56,6 +57,7 @@ class FakeClient{
  createRoom(){}
  leave(){}
  playCard(card){this.played=card;}
+ requestAiybai(){this.requests=(this.requests||0)+1;}
 }
 const win={BONDI_ONLINE_SERVER_URL:'https://bondi-online.onrender.com',
  location:{origin:'https://alithux.github.io',pathname:'/bondi/',search:'',protocol:'https:'},
@@ -116,6 +118,46 @@ assert.equal($('hudConnection').textContent,'● Online');
 assert.equal($('gameArea').classList.contains('is-dealing'),true,'other devices also wait for deal completion');
 room.dealUntil=0;update(); // server publishes the end of the deal
 assert.match($('hudTurn').textContent,/Your turn/);
+// Before any completed Aiy, keep a discoverable but disabled menu action,
+// without showing either a popup or a shortcut over the player's hand.
+assert.equal($('openAiybaiRequest').classList.contains('hidden'),false);
+assert.equal($('openAiybaiRequest').disabled,true);
+assert.match($('aiybaiMenuHint').textContent,/after a completed Aiy/i);
+assert.equal($('aiybaiShortcut').classList.contains('hidden'),true);
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),true);
+$('openAiybaiRequest').click();
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),true,'disabled menu cannot open a request');
+// After a completed Aiy and before the leader's next card, an explicit
+// action appears next to the hand and requires a separate confirmation.
+view.aiybaiWindowOpen=true;
+view.lastResolution={type:'normal',leadSuit:'♣',cards:[],winnerIndex:0};
+update();
+assert.equal($('openAiybaiRequest').disabled,false);
+assert.equal($('aiybaiShortcut').classList.contains('hidden'),false);
+assert.match($('aiybaiShortcut').textContent,/AI 1.*Aiybai/);
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),true,'no automatic popup');
+$('aiybaiShortcut').click();
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),false,'shortcut opens a manual confirmation');
+assert.equal(client.requests||0,0,'opening the panel cannot transfer cards');
+$('cancelAiybaiRequest').click();
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),true,'Cancel returns to ordinary gameplay');
+$('openAiybaiRequest').click();
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),false,'menu opens the same confirmation');
+$('requestAiybai').click();
+assert.equal(client.requests,1,'only explicit confirmation sends a request');
+view.aiybaiWindowOpen=false;
+view.aiybaiRequest={fromSeat:1,toSeat:0};
+view.currentPlayer=1;
+update();
+assert.equal($('aiybaiShortcut').classList.contains('hidden'),true,'no shortcut during a pending request');
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),false,'incoming consent choices stay visible');
+assert.equal($('aiybaiAnswerActions').classList.contains('hidden'),false);
+view.aiybaiRequest=null;view.currentPlayer=0;
+update();
+assert.equal($('openAiybaiRequest').disabled,true,'disabled between request windows');
+assert.equal($('aiybaiShortcut').classList.contains('hidden'),true);
+assert.equal($('aiybaiOfferPanel').classList.contains('hidden'),true);
+
 assert.match($('seats').innerHTML,/data-position="bottom"/);
 assert.equal(($('aiy').innerHTML.match(/class="played awaiting"/g)||[]).length,4);
 view.leadSuit='♥';
