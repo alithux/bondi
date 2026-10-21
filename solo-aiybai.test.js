@@ -66,7 +66,7 @@ $('soloMode').click();
 $('players').value='4';$('dealer').value='3';$('aiDifficulty').value='hard';
 $('newGame').click();
 fire(pending(2750));
-assert.match($('buildInfo').textContent,/5\\.15C\\.3/);
+assert.match(html,/Stage 5\\.15C\\.3 · Solo Aiybai requests/);
 assert.equal(hidden('openAiybaiRequest'),false,'solo menu advertises the request');
 assert.equal($('openAiybaiRequest').disabled,true,'cannot request before first completed Aiy');
 assert.equal(hidden('aiybaiShortcut'),true,'no opening-game request shortcut');
