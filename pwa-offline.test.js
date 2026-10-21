@@ -39,7 +39,7 @@ assert.match(html,/id="installApp"/);
 assert.match(html,/id="offlineNotice"/);
 assert.match(html,/id="onlineOfflineNote"/);
 assert.match(html,/navigator.serviceWorker.register\('\.\/sw\.js'\)/);
-assert.match(html,/Stage 5\.15C\.2 · Aiybai request visibility/);
+assert.match(html,/Stage 5\.15C\.3 · Solo Aiybai requests/);
 const events={};
 const origin='https://alithux.github.io',scope=origin+'/bondi/';
 const resolve=path=>new URL(path,scope).href;
@@ -84,18 +84,18 @@ async function emit(name,request){
  records.set('bondi-static-v5.11',new Map());
  await emit('install');
  assert(skip,'activate newly installed service worker');
- assert(records.has('bondi-static-v5.15c2-aiybai-request'));
- assert(records.get('bondi-static-v5.15c2-aiybai-request').size>=20,'entire public game shell is cached');
+ assert(records.has('bondi-static-v5.15c3-solo-aiybai'));
+ assert(records.get('bondi-static-v5.15c3-solo-aiybai').size>=20,'entire public game shell is cached');
  await emit('activate');
  assert(claimed,'new worker controls future navigations');
  assert(deletes.includes('bondi-static-v5.11'));
  const scripts=[...html.matchAll(/<script src="([^"]+)"/g)].map(m=>m[1]);
  for(const script of scripts){
-  assert(records.get('bondi-static-v5.15c2-aiybai-request').has(resolve(script)),script+' needs an offline copy');
+  assert(records.get('bondi-static-v5.15c3-solo-aiybai').has(resolve(script)),script+' needs an offline copy');
  }
  const offlinePage=await emit('fetch',{url:scope+'?room=ABC123',method:'GET',mode:'navigate'});
  assert(offlinePage&&offlinePage.source==='cache','offline navigation loads cached BONDI page');
- const offlineScript=await emit('fetch',{url:resolve('source-part-01.js?v=5.15c2'),method:'GET',mode:'cors'});
+ const offlineScript=await emit('fetch',{url:resolve('source-part-01.js?v=5.15c3'),method:'GET',mode:'cors'});
  assert(offlineScript&&offlineScript.source==='cache','game engine remains accessible offline');
  const prevCalls=networkRequests.length;
  const ignored=await emit('fetch',{url:'https://bondi-online.onrender.com/health',method:'GET',mode:'cors'});
