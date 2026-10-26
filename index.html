@@ -332,13 +332,26 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 @keyframes bondi-card-flight{0%{opacity:.72;transform:translate(-50%,-50%) scale(.68) rotate(var(--flight-angle,-8deg))}17%,93%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--flight-dx)),calc(-50% + var(--flight-dy))) scale(.96) rotate(0deg)}}
 @media(prefers-reduced-motion:reduce){#gameArea .card-flight{animation:none!important;display:none!important}#gameArea .table-aiy .played.arriving .face{opacity:1}}
 
+/* Stage 5.16.1: Aiy outcome feedback and public-card collection.
+   Cards are presentation copies only; BONDI's 1-second review is unchanged. */
+#gameArea .aiy-resolution-flights{position:absolute;inset:0;z-index:17;overflow:hidden;pointer-events:none;border-radius:inherit}
+#gameArea .aiy-resolve-card{position:absolute;left:var(--resolve-start-x);top:var(--resolve-start-y);width:49px;height:68px;display:flex;align-items:center;justify-content:center;background:linear-gradient(150deg,#fffdf5,#e7e3d4);border:1px solid #e7e6d9;border-radius:8px;box-shadow:0 5px 14px rgba(0,0,0,.37);color:#1e3030;font-size:1.1rem;font-weight:900;pointer-events:none;will-change:transform,opacity;animation:aiy-collect-card 620ms ease-in var(--resolve-delay,100ms) both}
+#gameArea .aiy-resolve-card.red{color:#b62c3a}
+#gameArea .aiy-resolve-card.returning{box-shadow:0 0 13px rgba(249,209,111,.65),0 5px 14px rgba(0,0,0,.37)}
+#gameArea .table-arena.aiy-collecting .table-aiy .played.has-card .face{opacity:0}
+#gameArea .aiy-resolution-feedback{position:absolute;z-index:23;left:50%;top:11%;transform:translateX(-50%);max-width:88%;padding:6px 13px;border-radius:999px;background:rgba(7,39,44,.96);border:1px solid #9ac3b0;box-shadow:0 4px 15px rgba(0,0,0,.34);color:#ecf7ec;font-size:clamp(.69rem,2.8vw,.85rem);font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;pointer-events:none}
+#gameArea .aiy-resolution-feedback.bondi{border-color:#f2ce7f;color:#ffe3a2}
+#gameArea .table-seats .seat.aiy-resolution-winner{border-color:#ffdc91;box-shadow:0 0 0 2px rgba(255,212,122,.78),0 0 20px rgba(248,200,93,.57);opacity:1}
+@keyframes aiy-collect-card{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}24%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--resolve-dx,0px)),calc(-50% + var(--resolve-dy,0px))) scale(.42)}}
+@media(prefers-reduced-motion:reduce){#gameArea .aiy-resolve-card{animation:none!important;display:none!important}#gameArea .table-arena.aiy-collecting .table-aiy .played.has-card .face{opacity:1}}
+
 /* A short visual response to a newly resolved Bondi. */
 #gameArea .table-arena.bondi-impact{outline:2px solid #f2d27a;outline-offset:-3px}
 #gameArea .table-arena.bondi-nudge{animation:bondi-table-nudge 420ms ease-out}
 @keyframes bondi-table-nudge{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
 @media(prefers-reduced-motion:reduce){#gameArea .table-arena.bondi-nudge{animation:none}}
 </style></head>
-<body><header><h1>BONDI</h1><p id="buildInfo">Stage 5.15C.3 · Solo Aiybai requests · Hard AI 4.5</p></header>
+<body><header><h1>BONDI</h1><p id="buildInfo">Stage 5.16.1 · Aiy resolution effects · Hard AI 4.5</p></header>
 <main>
 <section class="panel" id="homePanel"><strong>Choose how to play</strong><p class="note">Play solo or with friends. The confirmed BONDI rules remain unchanged.</p>
 <p id="offlineNotice" class="offline-notice hidden" role="status">You are offline. Solo vs AI works without internet after BONDI has loaded online once. Multiplayer needs an internet connection.</p>
@@ -451,12 +464,14 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
   <div id="lead" class="note table-lead" aria-live="off"></div>
   <div id="dealAnimation" class="deal-animation hidden" aria-hidden="true"></div>
    <div id="cardFlights" class="card-flights" aria-hidden="true"></div>
+   <div id="aiyResolutionFlights" class="aiy-resolution-flights" aria-hidden="true"></div>
+   <div id="aiyResolutionFeedback" class="aiy-resolution-feedback hidden" role="status" aria-live="polite"></div>
  </div>
 </section>
 <section class="panel game-hand-dock"><div class="row hand-heading"><div class="hand-heading-title"><strong id="handTitle">Your Aiybai</strong><span class="note" id="handNote"></span></div><label class="hand-layout-control" for="handLayout">Hand shape <select id="handLayout" aria-label="Aiybai card layout"><option value="straight">Straight</option><option value="arc">Arc</option></select></label></div><div class="hand-turn" id="handTurnStatus" role="status" aria-live="polite">Waiting for your turn…</div><button id="aiybaiShortcut" class="secondary hand-aiybai-shortcut hidden" type="button">Request Aiybai…</button><div id="hand" class="cards"></div><div class="selected-summary"><span id="selectedCardMini" class="selected-mini-card hidden" aria-hidden="true">—</span><div id="handPreview" class="hand-preview" role="status" aria-live="off"></div></div><div class="play-actions"><button class="primary" id="play" disabled>Play selected card</button><button id="clear">Clear</button></div><p class="note" id="hint">Tap once to select; double-tap the same card to play. Swipe sideways to browse your Aiybai.</p></section>
 </div>
 </main>
-<script src="source-part-01.js?v=5.15c3"></script><script src="source-part-02.js?v=5.15c3"></script><script src="source-part-03.js?v=5.15c3"></script><script src="source-part-04.js?v=5.15c3"></script><script src="source-part-05.js?v=5.15c3"></script><script src="source-part-06.js?v=5.15c3"></script><script src="source-part-07.js?v=5.15c3"></script><script src="source-part-08.js?v=5.15c3"></script><script src="source-part-09.js?v=5.15c3"></script><script src="source-part-10.js?v=5.15c3"></script><script src="game-engine.js?v=5.15c3"></script><script src="multiplayer-core.js?v=5.15c3"></script><script src="multiplayer-browser.js?v=5.15c3"></script><script src="online-config.js?v=5.15c3"></script><script src="online-client.js?v=5.15c3"></script>
+<script src="source-part-01.js?v=5.16a1"></script><script src="source-part-02.js?v=5.16a1"></script><script src="source-part-03.js?v=5.16a1"></script><script src="source-part-04.js?v=5.16a1"></script><script src="source-part-05.js?v=5.16a1"></script><script src="source-part-06.js?v=5.16a1"></script><script src="source-part-07.js?v=5.16a1"></script><script src="source-part-08.js?v=5.16a1"></script><script src="source-part-09.js?v=5.16a1"></script><script src="source-part-10.js?v=5.16a1"></script><script src="game-engine.js?v=5.16a1"></script><script src="multiplayer-core.js?v=5.16a1"></script><script src="multiplayer-browser.js?v=5.16a1"></script><script src="online-config.js?v=5.16a1"></script><script src="online-client.js?v=5.16a1"></script>
 <script>
 BondiEngineReady.then(()=>{
 const $=id=>document.getElementById(id);
@@ -465,7 +480,7 @@ let appMode='home',soloState=null,selected=null,aiTimer=null,resolutionTimer=nul
 let soloSettingsOpen=true,soloGameConfig=null,soloAiybaiWindowOpen=false,soloRequestTimer=null;
 let dealAnimationTimer=null,dealAnimationVersion=0,soloDealing=false,multiplayerDealing=false;
 let soloVisualGame=0,visualAiySnapshot=null,cardFlightJobs=[];
-let bondiVisualSnapshot=null,bondiNudgeTimer=null;
+let bondiVisualSnapshot=null,bondiNudgeTimer=null,resolutionVisualSnapshot=null;
 // Device-only visual preference. Never sent to the game server.
 const HAND_LAYOUT_KEY='bondi:hand-layout';
 let handLayout='straight',lastLeadFocusKey=null,arcDrag=null,ignoreArcClickUntil=0;
@@ -558,8 +573,75 @@ function observeBondi(state,key,connected=true){
   arena.classList.toggle('bondi-nudge',false);arena.classList.toggle('bondi-impact',false);bondiNudgeTimer=null;
  },600);
 }
+function stopAiyResolution(){
+ resolutionVisualSnapshot=null;
+ $('aiyResolutionFlights').innerHTML='';
+ $('tableArena').classList.toggle('aiy-collecting',false);
+ setHidden('aiyResolutionFeedback',true);
+ $('aiyResolutionFeedback').textContent='';
+ $('aiyResolutionFeedback').classList.toggle('bondi',false);
+}
+// Animate only transitions this viewer saw, never restored/reconnected history.
+// The resolved cards were public in the Aiy; hidden Aiybai stays private.
+function observeAiyResolution(state,key,reviewing,viewerSeat,connected=true){
+ const prior=resolutionVisualSnapshot,arena=$('tableArena'),
+       layer=$('aiyResolutionFlights'),banner=$('aiyResolutionFeedback');
+ if(!connected){stopAiyResolution();return;}
+ const r=reviewing&&!state.trick.length?state.lastResolution:null;
+ const sig=r?.cards?.length?JSON.stringify([r.type,r.winnerIndex,r.cards.map(e=>[e.playerIndex,e.card?.id||e.card?.rank+e.card?.suit])]):null;
+ const newResolution=!!(prior&&prior.key===key&&prior.liveCards>0&&sig&&prior.signature!==sig);
+ const active=!!(sig&&(newResolution||(prior?.key===key&&prior.active===sig)));
+ resolutionVisualSnapshot={key,liveCards:state.trick.length,signature:sig,active:active?sig:null};
+ if(!active){
+  layer.innerHTML='';arena.classList.toggle('aiy-collecting',false);
+  setHidden('aiyResolutionFeedback',true);banner.classList.toggle('bondi',false);
+  return;
+ }
+ const winner=Number.isInteger(r.winnerIndex)?r.winnerIndex:-1;
+ const name=winner>=0?state.players[winner]?.name:null;
+ const bondi=r.type==='bondi';
+ banner.textContent=bondi?
+  ('BONDI · '+(name||'Leading player')+' takes '+r.cards.length+' cards back'):
+  ((name||'Leading player')+' wins the Aiy');
+ banner.classList.toggle('bondi',bondi);
+ setHidden('aiyResolutionFeedback',false);
+ if(winner>=0){
+  const seat=$('seats').querySelector?.('.seat[data-seat="'+winner+'"]');
+  seat?.classList?.toggle('aiy-resolution-winner',true);
+ }
+ if(!newResolution)return; // Never restart flights after a duplicate snapshot.
+ layer.innerHTML='';
+ arena.classList.toggle('aiy-collecting',false);
+ if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||
+    !document.createElement||winner<0)return;
+ const bounds=arena.getBoundingClientRect?.();
+ const target=bondi?$('seats').querySelector?.('.seat[data-seat="'+winner+'"]')?.getBoundingClientRect?.():bounds;
+ if(!bounds?.width||!bounds?.height||!target?.width||!target?.height)return;
+ const tx=bondi?target.left+target.width/2:bounds.left+bounds.width/2;
+ const ty=bondi?target.top+target.height/2:bounds.top+bounds.height/2;
+ let animated=0;
+ for(const entry of r.cards){
+  const slot=$('aiy').querySelector?.('.played[data-seat="'+entry.playerIndex+'"]');
+  const face=slot?.querySelector?.('.face');
+  const from=face?.getBoundingClientRect?.();
+  if(!from?.width||!from?.height)continue;
+  const x=from.left+from.width/2,y=from.top+from.height/2;
+  const node=document.createElement('span');
+  node.className='aiy-resolve-card'+(bondi?' returning':'')+(['♥','♦'].includes(entry.card.suit)?' red':'');
+  node.setAttribute('aria-hidden','true');
+  node.textContent=String(entry.card.rank)+entry.card.suit;
+  node.style.setProperty('--resolve-start-x',(x-bounds.left)+'px');
+  node.style.setProperty('--resolve-start-y',(y-bounds.top)+'px');
+  node.style.setProperty('--resolve-dx',(tx-x)+'px');
+  node.style.setProperty('--resolve-dy',(ty-y)+'px');
+  node.style.setProperty('--resolve-delay',(100+animated*35)+'ms');
+  layer.appendChild(node);
+  animated++;
+ }
+ arena.classList.toggle('aiy-collecting',animated>0);
+}
 function stopCardFlights(){
- stopBondiNudge();
+ stopBondiNudge();stopAiyResolution();
  for(const j of cardFlightJobs){clearTimeout(j.timer);j.slot?.classList?.toggle('arriving',false);j.node?.remove?.();}
  cardFlightJobs=[];$('cardFlights').innerHTML='';visualAiySnapshot=null;
 }
@@ -668,6 +750,7 @@ function renderGame(state,{viewerSeat=0,aiSeats=new Set(),resolutionPause=false,
   `solo:${soloVisualGame}`;
  observePlayedCards(shownAiy,gameKey,!!resolutionPause);
  observeBondi(state,gameKey,!multiplayer||mpKind!=='online'||mpSnapshot?.connectionStatus==='connected');
+ observeAiyResolution(state,gameKey,!!resolutionPause,viewerSeat,!multiplayer||mpKind!=='online'||mpSnapshot?.connectionStatus==='connected');
  $('lead').textContent=resolutionPause&&state.lastResolution?
    `Lead suit: ${state.lastResolution.leadSuit}${state.lastResolution.type==='bondi'?' · BONDI':''}`:
    state.leadSuit?`Lead suit: ${state.leadSuit}${state.trick.some(e=>e.bondi)?' · Bondi occurred':''}`:
