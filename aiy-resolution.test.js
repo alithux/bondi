@@ -21,8 +21,10 @@ function boot(reduceMotion=false){
  }
  class E{
   constructor(id){this.id=id;this.classList=new Classes();this.children=[];this.value='';
-   this.innerHTML='';this.textContent='';this.events={};this.disabled=false;this.open=false;this.scrollLeft=0;
+   this._html='';this.textContent='';this.events={};this.disabled=false;this.open=false;this.scrollLeft=0;
    this.style={values:{},setProperty:(k,v)=>{this.style.values[k]=v}};}
+  set innerHTML(v){this._html=v;this.children=[];}
+  get innerHTML(){return this._html;}
   setAttribute(){} addEventListener(type,cb){this.events[type]=cb;}
   click(){return this.events.click?.({target:this});}
   appendChild(el){this.children.push(el);}
@@ -60,12 +62,12 @@ function boot(reduceMotion=false){
   location:{protocol:'https:',origin:'https://alithux.github.io',pathname:'/bondi/',search:''},addEventListener(){}};
  const ctx=vm.createContext({window:win,document:doc,localStorage:store,sessionStorage:store,
   navigator:{},Date,console,clearTimeout:()=>{},setTimeout:()=>0,setInterval:()=>0,
-  BondiEngineReady:{then:()=>{}},BondiEngine:{},
+  BondiEngineReady:{then:fn=>fn()},BondiEngine:{},
   BondiMultiplayer:{normalizeCode:s=>s.toUpperCase()},
   BondiMultiplayerCore:{},BondiOnline:{serverWebSocketURL:()=>''}
  });
- // Boot the minimal UI without initializing an engine or network client.
- vm.runInContext(script.replace('BondiEngineReady.then(()=>{','(function(){'),ctx,{filename:'aiy-resolution-app.js'});
+ // Boot the home view without beginning a Solo game or opening network sockets.
+ vm.runInContext(script,ctx,{filename:'aiy-resolution-app.js'});
  return {win,$,seats,slots,faces};
 }
 const e=(seat,id,rank,suit)=>({playerIndex:seat,card:{id,rank,suit}});
