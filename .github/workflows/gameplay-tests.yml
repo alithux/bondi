@@ -17,6 +17,7 @@ jobs:
       - run: node modern-game-screen.test.js
       - run: node deal-animation.test.js
       - run: node card-flight.test.js
+      - run: node aiy-resolution.test.js
       - run: node aiybai-layout.test.js
       - run: node solo-setup-visibility.test.js
       - run: node pwa-offline.test.js
