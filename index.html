@@ -600,9 +600,10 @@ function observeAiyResolution(state,key,reviewing,viewerSeat,connected=true){
  const winner=Number.isInteger(r.winnerIndex)?r.winnerIndex:-1;
  const name=winner>=0?state.players[winner]?.name:null;
  const bondi=r.type==='bondi';
+ const isYou=winner===viewerSeat;
  banner.textContent=bondi?
-  ('BONDI · '+(name||'Leading player')+' takes '+r.cards.length+' cards back'):
-  ((name||'Leading player')+' wins the Aiy');
+  ('BONDI · '+(isYou?'You':name||'Leading player')+(isYou?' take ':' takes ')+r.cards.length+' cards back'):
+  (isYou?'You win the Aiy':(name||'Leading player')+' wins the Aiy');
  banner.classList.toggle('bondi',bondi);
  setHidden('aiyResolutionFeedback',false);
  if(winner>=0){
