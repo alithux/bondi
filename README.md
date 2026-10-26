@@ -1,6 +1,9 @@
-# BONDI Stage 5.15C.3 — Solo vs AI Aiybai requests · Hard AI 4.5
+# BONDI Stage 5.16.1 — Aiy resolution animations · Hard AI 4.5
 
 ## Current release
+
+**Stage 5.16.1 — Resolution feedback:** Once a live Aiy resolves, a brief winner label and glow identify the original lead-suit winner. Publicly played cards animate off the table for a normal Aiy or back toward the recipient seat/Aiybai after a Bondi, alongside the existing Bondi nudge. The cards are cosmetic copies; the authoritative state and exactly one-second review are unchanged. Animations only start on observed live Aiy-to-resolution transitions, not reconnects, page restores, duplicated or batched snapshots. Reduce Motion shows static winner/return feedback and no moving cards. Solo, offline Solo, and 2/4-player online/same-browser multiplayer share the effects. The iPhone PWA build and cache are updated to **5.16.1** (`5.16a1` asset version). Actual iPhone visual behavior still needs real-device confirmation.
+
 
 **Solo vs AI Request Aiybai (Stage 5.15C.3):** The manual Request Aiybai action now works in both 2- and 4-player solo games, including offline PWA play. After an Aiy completes, only the active human leader may request the next active AI's entire Aiybai, before leading the next card. The action is visible but disabled with an explanation when unavailable; a compact shortcut appears by the hand only when eligible. Tap the shortcut, then explicitly confirm Ask, or Cancel and continue playing. The AI answers after ~1 second (mirroring the current multiplayer AI acceptance rule), transfers its entire Aiybai if it agrees, and finishes. No automatic request, premature opening-turn request, duplicate request, or transfer is allowed. AI opponents cannot initiate Aiybai requests. Requests block card play until answered. Finishing order, remaining-player detection, and conservation of all remaining cards are handled by the shared multiplayer consent engine; this feature requires no connection, online room, or database. The build label, public asset versions, and offline cache are bumped to 5.15C.3 for iPhone Home Screen visibility.
 
