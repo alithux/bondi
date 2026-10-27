@@ -276,6 +276,20 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 #gameArea #clear{background:#203943;border:1px solid #517278;color:#f0f7f4}
 #gameArea #hint{display:none}
 #gameArea .match-results:not(.hidden){position:fixed;inset:calc(12px + var(--safe-top)) 10px calc(93px + var(--safe-bottom));z-index:65;overflow:auto;border:1px solid #71977c;box-shadow:0 18px 40px #061a1c}
+#gameArea .match-results{isolation:isolate}
+#gameArea .results-hero{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;padding:14px 10px 15px;margin:10px 0 13px;background:radial-gradient(ellipse at 50% 0%,rgba(241,204,116,.23),rgba(15,59,52,.65) 77%);border:1px solid rgba(238,209,140,.45);border-radius:17px}
+#gameArea .results-hero-symbol{font-size:2.45rem;line-height:1.1;filter:drop-shadow(0 4px 9px rgba(0,0,0,.35))}
+#gameArea .results-hero-label{font-size:.7rem;font-weight:900;letter-spacing:.18em;color:#ebd39a}
+#gameArea .results-hero-name{font-size:clamp(1.2rem,5.2vw,1.7rem);font-weight:900;line-height:1.2;color:#fff5d7;overflow-wrap:anywhere}
+#gameArea .results-hero-detail{font-size:.81rem;line-height:1.4;color:#d5e9df}
+#gameArea .results-item.is-you{border-color:#e4c787;background:linear-gradient(115deg,#17493c,#14392e)}
+#gameArea .results-solo-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.65fr);gap:9px;margin:13px 0 3px}
+#gameArea .results-solo-actions button{min-height:49px;font-weight:850}
+#gameArea .results-confetti{position:absolute;top:0;left:0;right:0;height:230px;overflow:hidden;pointer-events:none;z-index:5}
+#gameArea .results-confetti span{position:absolute;left:var(--burst-x,50%);top:-18px;width:7px;height:13px;border-radius:2px;background:var(--burst-color,#f4d48a);opacity:0;animation:bondi-finale-spark 1100ms cubic-bezier(.24,.61,.48,1) var(--burst-delay,0ms) both}
+@keyframes bondi-finale-spark{0%{opacity:0;transform:translate3d(0,-18px,0) rotate(0)}10%{opacity:1}80%{opacity:1}100%{opacity:0;transform:translate3d(var(--burst-drift,20px),230px,0) rotate(var(--burst-spin,200deg))}}
+@media(prefers-reduced-motion:reduce){#gameArea .results-confetti span{display:none!important;animation:none!important}}
+@media(max-width:360px){#gameArea .results-hero{padding:11px 8px}#gameArea .results-solo-actions{grid-template-columns:1fr}}
 #gameArea .rematch-panel:not(.hidden){position:fixed;bottom:calc(15px + var(--safe-bottom));left:10px;right:10px;z-index:66;box-shadow:0 -8px 25px #071d1e}
 #gameArea .aiybai-offer:not(.hidden){position:fixed;bottom:calc(15px + var(--safe-bottom));left:10px;right:10px;z-index:67;box-shadow:0 -12px 36px rgba(0,0,0,.55)}
 /* Discoverable, opt-in Aiybai request: compact in the hand dock only when eligible. */
@@ -351,7 +365,7 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 @keyframes bondi-table-nudge{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
 @media(prefers-reduced-motion:reduce){#gameArea .table-arena.bondi-nudge{animation:none}}
 </style></head>
-<body><header><h1>BONDI</h1><p id="buildInfo">Stage 5.16.1 · Aiy resolution effects · Hard AI 4.5</p></header>
+<body><header><h1>BONDI</h1><p id="buildInfo">Stage 5.16.2 · Match finale · Hard AI 4.5</p></header>
 <main>
 <section class="panel" id="homePanel"><strong>Choose how to play</strong><p class="note">Play solo or with friends. The confirmed BONDI rules remain unchanged.</p>
 <p id="offlineNotice" class="offline-notice hidden" role="status">You are offline. Solo vs AI works without internet after BONDI has loaded online once. Multiplayer needs an internet connection.</p>
@@ -428,7 +442,14 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
  <div class="game-hud-status"><span id="hudTurn" class="hud-turn" role="status" aria-live="polite">Ready to play</span><span id="hudLead" class="hud-lead">Lead: —</span></div>
 </section>
 <section class="panel match-results hidden" id="matchResultsPanel" aria-live="polite">
+<div id="resultsConfetti" class="results-confetti" aria-hidden="true"></div>
 <span class="results-kicker">🏆 MATCH COMPLETE</span>
+<div class="results-hero" id="resultsHero">
+ <span id="resultsHeroSymbol" class="results-hero-symbol" aria-hidden="true">🏆</span>
+ <span id="resultsHeroLabel" class="results-hero-label">FINAL RESULTS</span>
+ <strong id="resultsHeroName" class="results-hero-name">Match complete</strong>
+ <span id="resultsHeroDetail" class="results-hero-detail"></span>
+</div>
 <h2 id="resultsTitle">Finishing order</h2>
 <p class="results-sub" id="resultsSubtitle"></p>
 <div class="results-metrics">
@@ -438,9 +459,10 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 </div>
 <div class="results-heading">Finishing order · Bondi statistics</div>
 <div class="results-list" id="resultsStandings"></div>
-<div class="results-heading">This room · all matches</div>
+<div id="resultsRoomSeries"><div class="results-heading">This room · all matches</div>
 <p class="results-series" id="resultsSeries"></p>
-<div class="room-totals" id="roomTotals"></div>
+<div class="room-totals" id="roomTotals"></div></div>
+<div id="resultsSoloActions" class="results-solo-actions hidden"><button class="primary" id="resultsSoloReplay" type="button">Play again · Solo</button><button id="resultsSoloHome" class="secondary" type="button">Home</button></div>
 </section>
 <section class="panel rematch-panel hidden" id="rematchPanel"><strong id="rematchTitle">Game complete</strong><p id="rematchHint"></p><button class="primary hidden" id="playAgain">Play Again — same room</button></section>
 <section class="panel aiybai-offer hidden" id="aiybaiOfferPanel" aria-live="polite">
@@ -471,7 +493,7 @@ body.in-game main{max-width:1100px;height:100dvh;padding:0;margin:auto;overflow:
 <section class="panel game-hand-dock"><div class="row hand-heading"><div class="hand-heading-title"><strong id="handTitle">Your Aiybai</strong><span class="note" id="handNote"></span></div><label class="hand-layout-control" for="handLayout">Hand shape <select id="handLayout" aria-label="Aiybai card layout"><option value="straight">Straight</option><option value="arc">Arc</option></select></label></div><div class="hand-turn" id="handTurnStatus" role="status" aria-live="polite">Waiting for your turn…</div><button id="aiybaiShortcut" class="secondary hand-aiybai-shortcut hidden" type="button">Request Aiybai…</button><div id="hand" class="cards"></div><div class="selected-summary"><span id="selectedCardMini" class="selected-mini-card hidden" aria-hidden="true">—</span><div id="handPreview" class="hand-preview" role="status" aria-live="off"></div></div><div class="play-actions"><button class="primary" id="play" disabled>Play selected card</button><button id="clear">Clear</button></div><p class="note" id="hint">Tap once to select; double-tap the same card to play. Swipe sideways to browse your Aiybai.</p></section>
 </div>
 </main>
-<script src="source-part-01.js?v=5.16a1"></script><script src="source-part-02.js?v=5.16a1"></script><script src="source-part-03.js?v=5.16a1"></script><script src="source-part-04.js?v=5.16a1"></script><script src="source-part-05.js?v=5.16a1"></script><script src="source-part-06.js?v=5.16a1"></script><script src="source-part-07.js?v=5.16a1"></script><script src="source-part-08.js?v=5.16a1"></script><script src="source-part-09.js?v=5.16a1"></script><script src="source-part-10.js?v=5.16a1"></script><script src="game-engine.js?v=5.16a1"></script><script src="multiplayer-core.js?v=5.16a1"></script><script src="multiplayer-browser.js?v=5.16a1"></script><script src="online-config.js?v=5.16a1"></script><script src="online-client.js?v=5.16a1"></script>
+<script src="source-part-01.js?v=5.16a2"></script><script src="source-part-02.js?v=5.16a2"></script><script src="source-part-03.js?v=5.16a2"></script><script src="source-part-04.js?v=5.16a2"></script><script src="source-part-05.js?v=5.16a2"></script><script src="source-part-06.js?v=5.16a2"></script><script src="source-part-07.js?v=5.16a2"></script><script src="source-part-08.js?v=5.16a2"></script><script src="source-part-09.js?v=5.16a2"></script><script src="source-part-10.js?v=5.16a2"></script><script src="game-engine.js?v=5.16a2"></script><script src="multiplayer-core.js?v=5.16a2"></script><script src="multiplayer-browser.js?v=5.16a2"></script><script src="online-config.js?v=5.16a2"></script><script src="online-client.js?v=5.16a2"></script>
 <script>
 BondiEngineReady.then(()=>{
 const $=id=>document.getElementById(id);
