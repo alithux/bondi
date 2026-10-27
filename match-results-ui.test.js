@@ -67,6 +67,11 @@ assert.equal($('resultsAiyCount').textContent,'24');
 assert.match($('resultsStandings').innerHTML,/Ayya &lt;Host&gt;/,'names escaped');
 assert.match($('resultsStandings').innerHTML,/Gave 4 Bondi/);
 assert.match($('resultsTitle').textContent,/AI 2 finished first/);
+assert.match($('resultsHeroName').textContent,/AI 2 finished first/,'winner spotlight uses true first finisher');
+assert.match($('resultsHeroDetail').textContent,/You finished 2 of 4/,'non-winner sees own rank');
+assert.equal($('resultsConfetti').innerHTML,'','restored completed match never fakes confetti');
+assert.match($('resultsStandings').innerHTML,/results-item is-you/,'viewer ranking is clearly highlighted');
+assert.equal($('resultsSoloActions').classList.contains('hidden'),true,'solo controls hidden in multiplayer');
 assert.match($('resultsSeries').textContent,/3 completed matches in this room/);
 assert.match($('roomTotals').innerHTML,/Ayya &lt;Host&gt;/,'seat names escaped in cumulative stats');
 assert.match($('roomTotals').innerHTML,/First: 2 · Last: 0/,'room first/last counts appear');
@@ -82,6 +87,15 @@ assert.equal($('playAgain').classList.contains('hidden'),true,'guests cannot rem
 view.roundOver=false;
 update(true);
 assert.equal($('matchResultsPanel').classList.contains('hidden'),true,'results hidden during game');
+view.roundOver=true;update(true);
+const firstBurst=$('resultsConfetti').innerHTML;
+assert.match(firstBurst,/--burst-delay:/,'a live finish has brief decorative celebration');
+assert.equal(($('resultsConfetti').innerHTML.match(/<span /g)||[]).length,12,'non-champion gets subtle result celebration');
+update(true);
+assert.equal($('resultsConfetti').innerHTML,firstBurst,'repeated result cannot restart confetti');
+view.finishedOrder=[0,2,1];update(true);
+assert.match($('resultsHeroName').textContent,/You finished first!/,'champion gets personal victory wording');
+view.finishedOrder=[2,0,1];view.roundOver=false;update(true);
 assert.equal($('rematchPanel').classList.contains('hidden'),true,'rematch hidden during game');
 // Stage 5.10.1: only the next leader may request before playing a card.
 for(const id of ['aiybaiOfferPanel','aiybaiOfferNote','requestAiybai','aiybaiAnswerActions','acceptAiybai','declineAiybai'])
