@@ -133,4 +133,28 @@ assert.equal(t.getState().roundOver,true,'last active human ends two-player matc
 assert.equal(t.getState().players[0].hand.length,twoHuman+twoAI);
 assert.equal(count(t.getState()),twoTotal);
 assert.equal(hidden('aiybaiShortcut'),true,'no request in completed match');
+assert.equal(hidden('matchResultsPanel'),false,'finished solo match now has a result screen');
+assert.equal(hidden('resultsSoloActions'),false,'solo result includes replay and Home buttons');
+assert.equal(hidden('resultsRoomSeries'),true,'solo results never show multiplayer room totals');
+assert.match($('resultsHeroName').textContent,/AI 1 finished first!/,'AI wins when its Aiybai is given away');
+assert.match($('resultsHeroDetail').textContent,/You finished 2 of 2/,'solo player sees own placement');
+assert.match($('resultsStandings').innerHTML,/AI 1/,'solo finishing order contains AI');
+$('resultsSoloReplay').click();
+assert.equal(t.getState().roundOver,false,'Play again starts a fresh solo match');
+assert.equal(hidden('matchResultsPanel'),true,'new solo match clears completed results');
+assert.equal(count(t.getState()),52,'solo replay deals a full deck');
+fire(pending(2750));
+// Make a later live match complete with the player first; this should show
+// victory copy and a single, nonblocking celebration.
+const fresh=t.getState();
+fresh.roundOver=true;fresh.finishedOrder=[0];fresh.players[0].status='finished';
+t.render();
+assert.match($('resultsHeroName').textContent,/You finished first!/);
+const soloBurst=$('resultsConfetti').innerHTML;
+assert.match(soloBurst,/--burst-delay:/,'fresh solo victory gets decorative confetti');
+t.render();
+assert.equal($('resultsConfetti').innerHTML,soloBurst,'re-render does not replay confetti');
+$('resultsSoloHome').click();
+assert.equal(hidden('homePanel'),false,'Home exits completed match');
+assert.equal(hidden('gameArea'),true);
 console.log('PASS Solo Aiybai: manual controls, opening restrictions, cancellation, AI consent, card locks, lead closure, deal reset, 2/4 players');
