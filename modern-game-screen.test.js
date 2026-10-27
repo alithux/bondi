@@ -26,7 +26,7 @@ assert.match(html,/#gameArea \.table-seats \.seat\[data-position="top"\]/);
 assert.match(html,/#gameArea \.table-seats \.seat\[data-position="bottom"\]/);
 assert.match(html,/@media\(max-width:360px\)/,'small Android and iPhone screens are supported');
 assert.match(html,/@media\(max-height:740px\)/,'short screens compact the interface');
-assert.match(html,/Stage 5\.16\.1 · Aiy resolution effects/);
+assert.match(html,/Stage 5\.16\.2 · Match finale/);
 
 class ClassList{
  constructor(){this.items=new Set(['hidden']);}
