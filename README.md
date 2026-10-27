@@ -1,6 +1,9 @@
-# BONDI Stage 5.16.1 — Aiy resolution animations · Hard AI 4.5
+# BONDI Stage 5.16.2 — Match results and winner celebrations · Hard AI 4.5
 
 ## Current release
+
+**Stage 5.16.2 — Mobile match finale:** Solo vs AI (2 or 4 players, including offline) now gets a complete results panel with BONDI finishing order, medal ranking, Bondi statistics, winner spotlight, and prominent **Play again · Solo** and **Home** actions. Online and local multiplayer keep their existing room totals and host-controlled Play Again rematch flow, with the same improved winner spotlight and clear highlights for your rank. A brief cosmetic confetti celebration plays only once when this device actually witnessed a match finish; restored and refreshed completed matches show the results without replay, and Reduce Motion disables the confetti without concealing the result. No game engine, score, transfer, or multiplayer protocol rules changed. Installed iPhone PWA public cache and displayed build are bumped to **5.16.2** (`5.16a2`). Live GitHub Pages/phone validation follows source merge.
+
 
 **Stage 5.16.1 — Resolution feedback:** Once a live Aiy resolves, a brief winner label and glow identify the original lead-suit winner. Publicly played cards animate off the table for a normal Aiy or back toward the recipient seat/Aiybai after a Bondi, alongside the existing Bondi nudge. The cards are cosmetic copies; the authoritative state and exactly one-second review are unchanged. Animations only start on observed live Aiy-to-resolution transitions, not reconnects, page restores, duplicated or batched snapshots. Reduce Motion shows static winner/return feedback and no moving cards. Solo, offline Solo, and 2/4-player online/same-browser multiplayer share the effects. The iPhone PWA build and cache are updated to **5.16.1** (`5.16a1` asset version). Actual iPhone visual behavior still needs real-device confirmation.
 

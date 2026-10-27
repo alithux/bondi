@@ -11,7 +11,7 @@ assert.match(html,/id="cardFlights" class="card-flights"/,'separate overlay exis
 assert.match(html,/#gameArea \.card-flights\{[^}]*pointer-events:none/,'flights never block taps');
 assert.match(html,/bondi-card-flight 460ms/,'flight completes inside the existing one-second review');
 assert.match(html,/@media\(prefers-reduced-motion:reduce\)\{#gameArea \.card-flight/,'reduced-motion style');
-assert.match(html,/Stage 5\.16\.1 · Aiy resolution effects/);
+assert.match(html,/Stage 5\.16\.2 · Match finale/);
 
 function boot(reduceMotion=false){
  class Classes{
