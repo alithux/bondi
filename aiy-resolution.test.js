@@ -11,7 +11,7 @@ assert.match(html,/id="aiyResolutionFeedback" class="aiy-resolution-feedback hid
 assert.match(html,/#gameArea \.aiy-resolution-flights\{[^}]*pointer-events:none/,'visuals do not intercept touches');
 assert.match(html,/@keyframes aiy-collect-card/);
 assert.match(html,/@media\(prefers-reduced-motion:reduce\)\{#gameArea \.aiy-resolve-card/);
-assert.match(html,/Stage 5\.16\.1 · Aiy resolution effects/);
+assert.match(html,/Stage 5\.16\.2 · Match finale/);
 assert.match(html,/observeAiyResolution\(state,gameKey/,'normal render path updates winner feedback');
 function boot(reduceMotion=false){
  class Classes{
