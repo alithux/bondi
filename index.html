@@ -503,6 +503,8 @@ let soloSettingsOpen=true,soloGameConfig=null,soloAiybaiWindowOpen=false,soloReq
 let dealAnimationTimer=null,dealAnimationVersion=0,soloDealing=false,multiplayerDealing=false;
 let soloVisualGame=0,visualAiySnapshot=null,cardFlightJobs=[];
 let bondiVisualSnapshot=null,bondiNudgeTimer=null,resolutionVisualSnapshot=null;
+const outcomeSeenActive=new Set(),outcomeCelebrated=new Set();
+let outcomeCelebrationTimer=null,outcomeCelebrationKey=null;
 // Device-only visual preference. Never sent to the game server.
 const HAND_LAYOUT_KEY='bondi:hand-layout';
 let handLayout='straight',lastLeadFocusKey=null,arcDrag=null,ignoreArcClickUntil=0;
@@ -702,12 +704,16 @@ function observePlayedCards(entries,key,reviewing=false){
  if(ids.length!==prior.length+1||!prior.every((id,i)=>id===ids[i]))return;
  if(appMode==='solo'||appMode==='multi-game')flyPlayedCard(entries[entries.length-1]);
 }
+function clearMatchConfetti(){
+ clearTimeout(outcomeCelebrationTimer);outcomeCelebrationTimer=null;outcomeCelebrationKey=null;
+ $('resultsConfetti').innerHTML='';
+}
 function showScreen(mode){
  const actualGame=(mode==='multi-game'||(mode==='solo'&&!!soloState&&!soloSettingsOpen));
  if(mode!==appMode)$('gameMenu').open=false;
  appMode=mode;
  document.body?.classList?.toggle?.('in-game',actualGame);
- if(!actualGame){stopDealAnimation();stopCardFlights();soloDealing=false;multiplayerDealing=false;}
+ if(!actualGame){stopDealAnimation();stopCardFlights();clearMatchConfetti();soloDealing=false;multiplayerDealing=false;}
  if(mode==='solo'&&!soloState)soloSettingsOpen=true;
  if(mode!=='multi-game'){aiybaiOfferOpen=false;setHidden('openAiybaiRequest',true);setHidden('aiybaiMenuHint',true);setHidden('aiybaiShortcut',true);setHidden('rematchPanel',true);setHidden('matchResultsPanel',true);setHidden('aiybaiOfferPanel',true);}
  setHidden('homePanel',mode!=='home');
@@ -771,6 +777,7 @@ function renderGame(state,{viewerSeat=0,aiSeats=new Set(),resolutionPause=false,
  const gameKey=multiplayer?
   `multi:${mpSnapshot?.room?.code||'none'}:${mpSnapshot?.room?.matchNumber||0}:${viewerSeat}`:
   `solo:${soloVisualGame}`;
+ if(!state.roundOver)outcomeSeenActive.add(gameKey);
  observePlayedCards(shownAiy,gameKey,!!resolutionPause);
  observeBondi(state,gameKey,!multiplayer||mpKind!=='online'||mpSnapshot?.connectionStatus==='connected');
  observeAiyResolution(state,gameKey,!!resolutionPause,viewerSeat,!multiplayer||mpKind!=='online'||mpSnapshot?.connectionStatus==='connected');
@@ -926,11 +933,11 @@ function requestSoloAiybai(){
   renderSolo();
  },1000);
 }
-function renderSolo(){if(!soloState)return;$('logNote').textContent='Solo strategy logs include your Aiybai and legal choices before each play.';renderGame(soloState,{viewerSeat:0,aiSeats:new Set(soloState.players.map((_,i)=>i).filter(i=>i!==0)),resolutionPause:soloResolutionPause,multiplayer:false});renderSoloAiybaiOffer();}
+function renderSolo(){if(!soloState)return;$('logNote').textContent='Solo strategy logs include your Aiybai and legal choices before each play.';renderGame(soloState,{viewerSeat:0,aiSeats:new Set(soloState.players.map((_,i)=>i).filter(i=>i!==0)),resolutionPause:soloResolutionPause,multiplayer:false});renderSoloAiybaiOffer();renderSoloMatchResults();}
 function playSoloHuman(cardId){if(!soloState||soloDealing||soloResolutionPause||soloState.roundOver||soloState.aiybaiRequest||soloState.currentPlayer!==0)return;const card=soloState.players[0].hand.find(c=>c.id===cardId);if(!card)return;const previous=soloState;const r=BondiEngine.playCard(soloState,0,cardId);selected=null;lastTapCard=null;lastTapAt=0;if(!r.ok){soloState.message=r.error;renderSolo();return}logDecision(0,card,previous);logResult(previous,r.state);const resolved=!!previous.trick.length&&!r.state.trick.length&&!!r.state.lastResolution;soloState=r.state;soloAiybaiWindowOpen=false;aiybaiOfferOpen=false;if(resolved&&!soloState.roundOver)beginSoloAiyReview();else renderSolo();}
 function playSoloAI(){if(!soloState||soloDealing||soloSettingsOpen||soloResolutionPause||soloState.roundOver||soloState.aiybaiRequest||soloState.currentPlayer===0)return;const i=soloState.currentPlayer,card=BondiEngine.chooseAICard(soloState,i,soloGameConfig?.difficulty||$('aiDifficulty').value);if(!card)return;const previous=soloState,r=BondiEngine.playCard(soloState,i,card.id);if(r.ok){logDecision(i,card,previous);if((soloGameConfig?.difficulty||$('aiDifficulty').value)==='hard'){const insight=BondiEngine.explainHardAILead(previous,i,card);if(insight)addFullLog(`SUIT MEMORY · ${insight.explanation} (Seat ${insight.nextSeat}, lead ${insight.suit})`);}logResult(previous,r.state);const resolved=!!previous.trick.length&&!r.state.trick.length&&!!r.state.lastResolution;soloState=r.state;soloAiybaiWindowOpen=false;selected=null;if(resolved&&!soloState.roundOver)beginSoloAiyReview();else renderSolo();}else{soloState.message=r.error;renderSolo();}}
 function startSolo(){
- stopCardFlights();soloVisualGame++;
+ stopCardFlights();clearMatchConfetti();soloVisualGame++;
  clearTimeout(aiTimer);clearTimeout(resolutionTimer);clearTimeout(soloRequestTimer);soloRequestTimer=null;soloResolutionPause=false;soloAiybaiWindowOpen=false;aiybaiOfferOpen=false;
  const n=Number($('players').value),d=Math.min(Number($('dealer').value||0),n-1);
  soloGameConfig={playerCount:n,dealer:d,difficulty:$('aiDifficulty').value};
@@ -1008,26 +1015,71 @@ function renderLobby(){
  updatePresence();
 }
 
-function renderMatchResults(snap){
- const result=BondiMultiplayerCore.matchResults(snap.room,snap.view);
- setHidden('matchResultsPanel',!result);
- if(!result)return;
+// Finishing order comes from the shared multiplayer rules for all modes.
+// Cosmetic confetti only plays once when this viewer actually witnessed
+// an in-progress match complete; refreshing an old result stays static.
+function renderFinaleHero(result,viewerSeat,gameKey){
+ const winner=result.players[0],mine=result.players.find(p=>p.seat===viewerSeat);
+ const first=mine?.rank===1;
+ $('resultsHeroSymbol').textContent=first?'🏆':'🏅';
+ $('resultsHeroLabel').textContent=first?'VICTORY':'MATCH COMPLETE';
+ $('resultsHeroName').textContent=first?'You finished first!':winner?winner.name+' finished first!':'Match complete';
+ $('resultsHeroDetail').textContent=first?'You led the finishing order — well played!':
+  mine?'You finished '+mine.rank+' of '+result.players.length+' players.':'See the finishing order below.';
+ if(!outcomeSeenActive.has(gameKey)||outcomeCelebrated.has(gameKey))return;
+ outcomeCelebrated.add(gameKey);
+ if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return;
+ clearMatchConfetti();
+ outcomeCelebrationKey=gameKey;
+ $('resultsConfetti').innerHTML=Array.from({length:first?22:12},(_,i)=>{
+  const x=8+(i*37)%85,drift=((i*53)%109)-54;
+  const spin=(i%2?-1:1)*(150+i*19);
+  const tone=['#f1d083','#e9f3da','#9fd3bd','#ffdba8'][i%4];
+  return '<span style="--burst-x:'+x+'%;--burst-drift:'+drift+'px;--burst-spin:'+spin+
+    'deg;--burst-delay:'+(i%7)*35+'ms;--burst-color:'+tone+'"></span>';
+ }).join('');
+ outcomeCelebrationTimer=setTimeout(()=>{
+  if(outcomeCelebrationKey===gameKey)clearMatchConfetti();
+ },1650);
+}
+function renderResultsCommon(result,viewerSeat,gameKey){
  const first=result.players[0],last=result.players.find(p=>p.lastHolding);
- $('resultsTitle').textContent=first?`${first.name} finished first!`:'Match complete';
- $('resultsSubtitle').textContent=`Match ${result.matchNumber} · ${result.difficulty.toUpperCase()} AI · Room ${snap.room.code}`;
+ $('resultsTitle').textContent=first?first.name+' finished first!':'Match complete';
  $('resultsBondiCount').textContent=String(result.bondiEvents);
  $('resultsAiyCount').textContent=String(result.bondiEvents+result.normalAiy);
  $('resultsLastSeat').textContent=last?last.name:'None';
  const medals=['🥇','🥈','🥉','4'];
- $('resultsStandings').innerHTML=result.players.map(p=>`<div class="results-item">
+ $('resultsStandings').innerHTML=result.players.map(p=>`<div class="results-item${p.seat===viewerSeat?' is-you':''}">
    <span class="results-rank">${medals[p.rank-1]||p.rank}</span>
-   <div class="results-name"><strong>${escapeHTML(p.name)}${p.seat===snap.seat?' · You':''}</strong>
+   <div class="results-name"><strong>${escapeHTML(p.name)}${p.seat===viewerSeat?' · You':''}</strong>
    <small>${p.isAI?'AI opponent':'Human player'} · Seat ${p.seat+1}${p.lastHolding?' · Last holding cards':''}</small></div>
    <div class="results-bondi"><span>Gave ${p.bondiGiven} Bondi</span><span>Received ${p.bondiReceived} Bondi</span></div>
  </div>`).join('');
+ renderFinaleHero(result,viewerSeat,gameKey);
+}
+function renderSoloMatchResults(){
+ const room={seats:soloState.players.map((p,i)=>({name:p.name,isAI:i!==0})),
+  aiDifficulty:soloGameConfig?.difficulty||'hard',matchNumber:1};
+ const result=BondiMultiplayerCore.matchResults(room,soloState);
+ setHidden('matchResultsPanel',!result);
+ setHidden('resultsRoomSeries',true);
+ setHidden('resultsSoloActions',!result);
+ if(!result)return;
+ renderResultsCommon(result,0,'solo:'+soloVisualGame);
+ $('resultsSubtitle').textContent='Solo vs AI · '+result.difficulty.toUpperCase()+
+  ' · '+soloState.players.length+' players';
+}
+function renderMatchResults(snap){
+ const result=BondiMultiplayerCore.matchResults(snap.room,snap.view);
+ setHidden('matchResultsPanel',!result);
+ setHidden('resultsRoomSeries',!result);
+ setHidden('resultsSoloActions',true);
+ if(!result)return;
+ renderResultsCommon(result,snap.seat,'multi:'+snap.room.code+':'+(snap.room.matchNumber||0)+':'+snap.seat);
+ $('resultsSubtitle').textContent='Match '+result.matchNumber+' · '+result.difficulty.toUpperCase()+' AI · Room '+snap.room.code;
  const totals=snap.room.roomStats||BondiMultiplayerCore.newRoomStats();
  const matches=totals.matchesPlayed||0;
- $('resultsSeries').textContent=`${matches} completed match${matches===1?'':'es'} in this room · Reset when the room closes.`;
+ $('resultsSeries').textContent=matches+' completed match'+(matches===1?'':'es')+' in this room · Reset when the room closes.';
  $('roomTotals').innerHTML=snap.room.seats.map((seat,i)=>`<div class="room-total-row">
    <strong>${escapeHTML(seat.name)} · Seat ${i+1}${i===snap.seat?' · You':''}</strong>
    <span>🥇 First: ${totals.firstPlaces[i]} · Last: ${totals.lastPlaces[i]}</span>
@@ -1203,6 +1255,8 @@ function openAiybaiConfirmation(){
 $('openAiybaiRequest').addEventListener('click',openAiybaiConfirmation);
 $('aiybaiShortcut').addEventListener('click',openAiybaiConfirmation);
 $('cancelAiybaiRequest').addEventListener('click',()=>{aiybaiOfferOpen=false;if(appMode==='solo')renderSoloAiybaiOffer();else if(mpSnapshot)renderAiybaiOffer(mpSnapshot);});
+$('resultsSoloReplay').addEventListener('click',()=>{if(appMode==='solo'&&soloState?.roundOver)startSolo();});
+$('resultsSoloHome').addEventListener('click',()=>{if(appMode==='solo')showScreen('home');});
 $('soloHome').addEventListener('click',()=>showScreen('home'));$('multiBack').addEventListener('click',()=>showScreen('home'));$('newGame').addEventListener('click',startSolo);$('clear').addEventListener('click',()=>{selected=null;if(appMode==='solo')renderSolo();else renderMultiplayerGame();});$('play').addEventListener('click',()=>{if(selected)playSelected(selected)});$('createRoom').addEventListener('click',()=>{try{ensureMP().createRoom($('playerName').value);}catch(e){onMPError(e.message);}});$('joinCode').addEventListener('input',e=>e.target.value=BondiMultiplayer.normalizeCode(e.target.value));$('transportMode').addEventListener('change',showTransportMode);$('onlineServer').addEventListener('input',refreshResumeButton);for(const id of ['retryLobby','retryGame'])$(id).addEventListener('click',()=>{try{if(mpKind==='online')mp.retryConnection();}catch(e){onMPError(e.message);}});$('resumeRoom').addEventListener('click',()=>{try{ensureMP().resumeRoom();}catch(e){onMPError(e.message);}});$('joinRoom').addEventListener('click',()=>{try{ensureMP().joinRoom($('playerName').value,$('joinCode').value);}catch(e){onMPError(e.message);}});$('leaveRoom').addEventListener('click',leaveMultiplayer);$('leaveGame').addEventListener('click',leaveMultiplayer);$('readyButton').addEventListener('click',()=>{const room=mpSnapshot.room,me=room.seats.find(s=>s.clientId===mpSnapshot.clientId);if(me)mp.setReady(!me.ready);});$('mpDealer').addEventListener('change',e=>mp.setDealer(Number(e.target.value)));$('mpAIDifficulty').addEventListener('change',e=>{if(mpSnapshot?.isHost)mp.setAIDifficulty(e.target.value);});$('fillAI').addEventListener('click',()=>{if(!mpSnapshot?.isHost)return;const empty=mpSnapshot.room.seats.filter(s=>!s.clientId&&!s.isAI).length;for(let i=0;i<empty;i++)mp.addAI();});$('startRoom').addEventListener('click',()=>mp.startGame());$('playAgain').addEventListener('click',()=>{if(mpKind!=='online'||!mpSnapshot?.isHost||!mpSnapshot.view?.roundOver)return;$('playAgain').disabled=true;mp.requestRematch();});$('inviteLink').addEventListener('click',()=>{ $('inviteLink').select(); });$('requestAiybai').addEventListener('click',()=>{if(appMode==='solo'){requestSoloAiybai();return;}if(aiybaiOfferOpen&&mp&&mpSnapshot?.view?.aiybaiWindowOpen&&mpSnapshot.view.currentPlayer===mpSnapshot.seat)mp.requestAiybai();});$('acceptAiybai').addEventListener('click',()=>{if(mp)mp.answerAiybai(true);});$('declineAiybai').addEventListener('click',()=>{if(mp)mp.answerAiybai(false);});$('copyRoomCode').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(code)await copyLobbyText(code,`Room code ${code} copied. Share it with your friends.`);});$('shareRoom').addEventListener('click',async()=>{const code=mpSnapshot?.room?.code;if(!code||mpKind!=='online')return;const url=roomInviteURL(code);if(navigator.share){try{await navigator.share({title:'Join my BONDI room',text:`Join my BONDI room ${code}`,url});$('shareStatus').textContent='Invite shared.';return;}catch(e){if(e.name==='AbortError')return;}}await copyLobbyText(url,'Invite link copied. Send it to your friends.');});$('copyFullLog').addEventListener('click',async()=>{let text;if(appMode==='solo')text=fullGameLog.join('\n');else{const view=currentMPView(),room=mpSnapshot?.room;text=['BONDI MULTIPLAYER GAME LOG','Build: '+$('buildInfo').textContent,'Engine: Stage 4.5',`AI difficulty: ${(room?.aiDifficulty||'hard').toUpperCase()}`,`Room: ${room?.code||''}`,`Match: ${Number(room?.matchNumber||1)}`,`Your seat: ${(currentMPSeat()??0)+1}`,'Seats:',...(room?.seats||[]).map((seat,i)=>`Seat ${i+1}: ${seat.name}${seat.aiTakeover?' (AI takeover after leaving)':seat.isAI?' (AI)':''}`),'',...multiplayerNamedLogs(view?.log||[],room),...(view?.roundOver?['','MATCH RESULTS',...BondiMultiplayerCore.matchResults(room,view).players.map(p=>`${p.rank}. ${p.name} (Seat ${p.seat+1}) · Gave ${p.bondiGiven} Bondi · Received ${p.bondiReceived} Bondi${p.lastHolding?' · Last holding cards':''}`),`Bondi events: ${BondiMultiplayerCore.matchResults(room,view).bondiEvents}`,'','CURRENT ROOM TOTALS',`${room?.roomStats?.matchesPlayed||0} matches`,...(room?.seats||[]).map((seat,i)=>`${seat.name} (Seat ${i+1}) · First ${room?.roomStats?.firstPlaces?.[i]||0} · Last ${room?.roomStats?.lastPlaces?.[i]||0} · Bondi given ${room?.roomStats?.bondiGiven?.[i]||0} · Received ${room?.roomStats?.bondiReceived?.[i]||0}`)]:[])].join('\n');}try{await navigator.clipboard.writeText(text);$('copyStatus').textContent='Game log copied.';}catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();$('copyStatus').textContent='Game log copied.';}setTimeout(()=>$('copyStatus').textContent='',2500);});window.addEventListener('beforeunload',()=>{try{if(mp&&mp.room&&mpKind!=='online')mp.leave(true);}catch(e){}});const inviteCode=(window.location?.search||'').match(/[?&]room=([A-Z0-9]{6})(?:&|$)/i)?.[1];
 if(inviteCode){$('joinCode').value=inviteCode.toUpperCase();chooseRoomEntry('join');showScreen('multi-setup');}else showScreen('home');
 
