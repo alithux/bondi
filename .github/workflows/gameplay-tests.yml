@@ -12,6 +12,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: node dev/scenarios/test.js
       - run: node home-contrast.test.js
       - run: node mobile-ux.test.js
       - run: node modern-game-screen.test.js
